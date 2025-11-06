@@ -1,22 +1,23 @@
-export type BlueprintCallable = {
-  new (): {
-    run: () => Promise<void> | void;
-  };
-};
+export type BlueprintCallable = { new (): { run: () => Promise<void> | void } };
+
+
 
 export class BaseBlueprint {
-  /**
-   * Jalankan semua blueprint yang terdaftar.
-   */
+
+  // =================================>
+  // ## List of blueprint to run
+  // =================================>
   async run(): Promise<void> {
     await this.call([
-      // something amazing
+
     ]);
   }
 
-  /**
-   * Helper untuk menjalankan blueprint.
-   */
+
+
+  // =================================>
+  // ## Blueprint Runner
+  // =================================>
   private async call(blueprints: BlueprintCallable[]): Promise<void> {
     for (const BPClass of blueprints) {
       const runner = new BPClass();

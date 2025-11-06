@@ -1,8 +1,12 @@
-import { Command } from "commander";
-import { writeFileSync, mkdirSync, existsSync } from "fs";
 import path from "path";
-import fs from "fs";
+import fs, { writeFileSync, mkdirSync, existsSync } from "fs";
+import { Command } from "commander";
 
+
+
+// =====================================>
+// ## Command: make:controller
+// =====================================>
 const makeControllerCommand  =  new Command("make:controller")
   .argument("<name>", "Controller Name")
   .description("Create new controller")

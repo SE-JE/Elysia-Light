@@ -1,6 +1,6 @@
 import type { ControllerContext } from "elysia"
-import { db } from '@/utils/db.utils'
-import {{ model }} from '@/models/{{ model }}'
+import { db } from '@utils'
+import { {{ model }} } from '@models'
 
 export class {{ name }} {
     // ========================================>

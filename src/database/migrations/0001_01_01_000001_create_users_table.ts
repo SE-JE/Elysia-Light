@@ -1,8 +1,7 @@
-import { db } from '@/utils/db.utils';
 import { Migration } from 'sutando';
+import { db } from '@utils';
 
-export default class AddUsersTable extends Migration 
-{
+export default class AddUsersTable extends Migration {
   // =========================>
   // ## Run the migration
   // =========================>

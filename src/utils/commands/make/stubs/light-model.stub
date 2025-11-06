@@ -1,4 +1,4 @@
-import { Model } from '@/utils/model.utils'
+import { Model } from '@utils'
 {{ import }}
 
 export default class {{ name }} extends Model {

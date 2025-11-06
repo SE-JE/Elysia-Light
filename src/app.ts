@@ -1,28 +1,58 @@
+import os from 'os'
 import { Elysia } from 'elysia'
-import { CorsMiddleware } from '@/utils/middleware.utils'
-import { Controller } from '@/utils/controller.utils'
-import { db } from "@/utils/db.utils"
-import { redis } from "@/utils/cache.utils"
-import { routes } from '@/routes'
-import { Storage } from '@/utils/storage'
+import { Controller, db, Middleware, redis, storage } from "@utils"
+import { routes } from '@routes/.'
 
 
+// =====================================>
+// ## Init: middleware & router app
+// =====================================>
 export const app  =  new Elysia()
-    .use(CorsMiddleware)
-    .use(Storage)
-    .use(Controller)
-    .use(routes)
+  .use(Middleware.Cors)
+  .use(Middleware.BodyParse)
+  .use(Controller)
+  .use(storage)
+  .use(routes)
 
+
+
+// =====================================>
+// ## Init: database
+// =====================================>
 db.schema
-console.log(`💡 Database connected!`)
+console.log(`🚀 Database connected ${process.env.DB_DATABASE}!`)
 
-redis.on("connect", () => {
-    console.log("💡 Redis connecting...")
-})
 
-redis.on("error", (err) => {
+
+// =====================================>
+// ## Init: redis
+// =====================================>
+if (process.env.REDIS_HOST && process.env.REDIS_PORT) {
+  redis.on("connect", () => {
+    console.log(`🚀 Redis connected ${process.env.REDIS_HOST}:${process.env.REDIS_PORT}!`)
+  })
+
+  redis.on("error", (err) => {
     console.error("❌ Redis error:", err)
-})
+  })
+}
 
-app.listen(4000)
-console.log(`🚀 Server is running at http://localhost:4000!`)
+
+
+// =====================================>
+// ## Init: running server
+// =====================================>
+function getLocalIP() {
+  const interfaces = os.networkInterfaces()
+  for (const name of Object.keys(interfaces)) {
+    for (const net of interfaces[name] || []) {
+      if (net.family === 'IPv4' && !net.internal) return net.address
+    }
+  }
+}
+
+app.listen({ port: process.env.APP_PORT, hostname: '0.0.0.0' })
+console.log(`🚀 Server is running at http://localhost:${process.env.APP_PORT || 4000} && http://${getLocalIP()}:${process.env.APP_PORT || 4000}!`)
+
+
+

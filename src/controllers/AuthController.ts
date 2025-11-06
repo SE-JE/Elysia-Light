@@ -1,11 +1,8 @@
-import fs from 'fs';
 import { ControllerContext } from "elysia"
 import bcrypt from 'bcrypt';
-import User from "@/models/User"
-import { Auth } from '@/utils/auth.utils';
-import { db } from "@/utils/db.utils";
-import UserMailToken from "@/mails/UserMailToken.mail";
-import path from 'path';
+import { User } from "@models"
+import { Auth, db } from '@utils';
+import { UserMailToken } from "@mails";
 
 export class AuthController {
     // =============================================>
@@ -54,7 +51,7 @@ export class AuthController {
 
         await User.query().where("email", email).whereNull("email_verification_at").delete();
         
-        const model = new User().dumpField(c.body as Record<string, any>)
+        const model = new User().pumpFillable(c.body as Record<string, any>)
 
         model.fill({
             "password": await bcrypt.hash(password, 10)

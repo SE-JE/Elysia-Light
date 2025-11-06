@@ -1,10 +1,10 @@
-import { Model } from '@/utils/model.utils'
+import { Model } from '@utils/model.util'
 
-export default class User extends Model {
+export class User extends Model {
     // =====================>
     // ## Fillable
     // =====================>
-    fillable    =  [
+    public fillable    =  [
         "name",
         "email",
         "password"
@@ -13,7 +13,7 @@ export default class User extends Model {
     // ====================>
     // ## Selectable
     // ====================>
-    selectable  =  [
+    public selectable  =  [
         "id",
         "name",
         "email",
@@ -23,7 +23,7 @@ export default class User extends Model {
     // ====================>
     // ## Searchable
     // ====================>
-    searchable  =  [
+    public searchable  =  [
         "name",
         "email"
     ]

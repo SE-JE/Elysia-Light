@@ -3,27 +3,27 @@
   "version": "1.0.50",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/app.ts",
+    "barrels": "bun run src/utils/commands/barrels.ts",
+    "dev": "concurrently --raw \"bun barrels\" \"bun run --watch src/app.ts\"",
     "start": "bun run src/app.ts",
     "light": "bun src/utils/commands/light.ts"
   },
   "dependencies": {
-    "@types/bcrypt": "^6.0.0",
-    "@types/nodemailer": "^7.0.2",
-    "@types/pg": "^8.15.5",
-    "bcrypt": "^6.0.0",
-    "dotenv": "^17.2.2",
     "elysia": "latest",
+    "sutando": "^1.7.2",
+    "dotenv": "^17.2.2",
+    "tsconfig-paths": "^4.2.0",
     "ioredis": "^5.8.0",
     "nodemailer": "^7.0.9",
-    "pg": "^8.16.3",
-    "sutando": "^1.7.2",
-    "tsconfig-paths": "^4.2.0",
+    "bcrypt": "^6.0.0",
     "validator": "^13.15.15"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/nodemailer": "^7.0.2",
     "@types/validator": "^13.15.3",
-    "bun-types": "latest"
-  },
-  "module": "src/index.js"
+    "barrelsby": "^2.8.1",
+    "bun-types": "latest",
+    "concurrently": "^9.2.1"
+  }
 }

@@ -1,43 +1,49 @@
-import nodemailer, { SentMessageInfo, TransportOptions } from "nodemailer";
 import { readFileSync } from "fs";
 import { join } from "path";
+import nodemailer, { SentMessageInfo } from "nodemailer";
+
+
 
 export interface SendMailOptions {
-  to: string;
-  subject: string;
-  html?: string;
-  text?: string;
-  attachments?: {
-    filename: string;
-    path: string;
+  to            :  string;
+  subject       :  string;
+  html         ?:  string;
+  text         ?:  string;
+  attachments  ?:  {
+    filename    :  string;
+    path        :  string;
   }[];
 }
 
 
+
+// =============================>
+// ## Mail: Send mail 
+// =============================>
 export async function sendMail(options: {
-  to: string;
-  subject: string;
-  text?: string;
-  html?: string;
-  attachments?: { filename: string; path: string }[];
+  to            :  string;
+  subject       :  string;
+  text         ?:  string;
+  html         ?:  string;
+  attachments  ?:  { filename: string; path: string }[];
 }) {
   const transporter = nodemailer.createTransport({
-    host: process.env.MAIL_HOST,
-    port: Number(process.env.MAIL_PORT),
-    secure: Number(process.env.MAIL_PORT) === 465,
-    auth: {
-      user: process.env.MAIL_USERNAME,
-      pass: process.env.MAIL_PASSWORD,
+    host    :  process.env.MAIL_HOST,
+    port    :  Number(process.env.MAIL_PORT),
+    secure  :  Number(process.env.MAIL_PORT) === 465,
+    auth    :  {
+      user  :  process.env.MAIL_USERNAME,
+      pass  :  process.env.MAIL_PASSWORD,
     },
   });
 
   const info = (await transporter.sendMail({
-    from: `${process.env.MAIL_FROM_NAME || process.env.APP_NAME} <${process.env.MAIL_FROM_ADDRESS || process.env.MAIL_USERNAME}>`,
-    to: options.to,
-    subject: options.subject,
-    text: options.text,
-    html: options.html,
-    attachments: options.attachments,
+    from         :  `${process.env.MAIL_FROM_NAME || process.env.APP_NAME} <${process.env.MAIL_FROM_ADDRESS || process.env.MAIL_USERNAME}>`,
+    to           :  options.to,
+    subject      :  options.subject,
+    text         :  options.text,
+    html         :  options.html,
+    attachments  :  options.attachments,
   })) as SentMessageInfo;
 
   console.log("✅ Email terkirim:", info.messageId);
@@ -45,6 +51,10 @@ export async function sendMail(options: {
 }
 
 
+
+// =============================>
+// ## Mail: Render mail template 
+// =============================>
 export function renderMailTemplate(template: string, options: Record<string, string>) {
   const templateDir = join(import.meta.dir, "./../mails/templates");
 

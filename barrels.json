@@ -1,0 +1,6 @@
+{
+  "directory": ["src/models", "src/controllers", "src/mails"],
+  "delete": true,
+  "exclude": ["index.ts"],
+  "structure": "flat"
+}

@@ -1,7 +1,12 @@
-import { Command } from "commander";
-import { writeFileSync, mkdirSync, existsSync, readdirSync, readFileSync } from "fs";
 import path from "path";
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from "fs";
+import { Command } from "commander";
 
+
+
+// =====================================>
+// ## Command: make:light-controller
+// =====================================>
 const makeLightControllerCommand = new Command("make:light-controller")
   .argument("<name>", "Controller Name")
   .option("-m, --model <model>", "Attach model to controller")

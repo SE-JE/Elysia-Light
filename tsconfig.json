@@ -101,7 +101,17 @@
     "skipLibCheck"      :  true,                                 /* Skip type checking all .d.ts files. */
     "baseUrl"           :  ".",                                                                              // root project
     "paths"             :  {
-      "@/*": ["src/*"]  // @ menunjuk ke folder src
+      "@/*"             : ["src/*"],
+      "@utils"          : ["src/utils/index.ts"],
+      "@utils/*"        : ["src/utils/*"],
+      "@controllers"    : ["src/controllers/index.ts"],
+      "@controllers/*"  : ["src/controllers/*"],
+      "@models"         : ["src/models/index.ts"],
+      "@models/*"       : ["src/models/*"],
+      "@mails/*"        : ["src/mails/*"],
+      "@mails"          : ["src/mails/index.ts"],
+      "@routes/*"       : ["src/routes/*"],
+      "@blueprints/*"   : ["src/blueprints/*"]
     }
   }
 }

@@ -1,15 +1,21 @@
-import { Command } from "commander";
-import path from "path";
-import { db } from '@/utils/db.utils'
 import fs from "fs";
-import { Client } from "pg";
+import path from "path";
+import { Command } from "commander";
+import { sutando } from "sutando";
 
+
+
+// =====================================>
+// ## Command: migrate
+// =====================================>
 export const migrateCommand = new Command("migrate")
   .description("Run all migration")
   .action(async () => 
 {
 
   await ensureDatabaseExists(process.env.DB_DATABASE || "db_elysia_light");
+
+  const { db } = await import("@/utils/db.util");
 
   const hasTable = await db.schema.hasTable("migrations");
   if (!hasTable) {
@@ -26,11 +32,17 @@ export const migrateCommand = new Command("migrate")
 });
 
 
+
+// =====================================>
+// ## Command: migrate:fresh
+// =====================================>
 export const migrateFreshCommand = new Command("migrate:fresh")
   .description("Fresh and run all migration")
   .action(async () => 
 {
   await ensureDatabaseExists(process.env.DB_DATABASE || "db_elysia_light");
+
+  const { db } = await import("@/utils/db.util");
 
   await db.raw(`DROP SCHEMA public CASCADE;`);
   await db.raw(`CREATE SCHEMA public;`);
@@ -49,7 +61,13 @@ export const migrateFreshCommand = new Command("migrate:fresh")
 });
 
 
+
+// =====================================>
+// ## Command: migration helpers
+// =====================================>
 async function runMigrationFile() {
+  const { db } = await import("@/utils/db.util");
+
   const migrations = await db.table("migrations").select("name").get();
   const migrated = migrations.map((row: any) => row.name);
 
@@ -93,31 +111,6 @@ async function runMigrationFile() {
 }
 
 
-async function ensureDatabaseExists(databaseName: string) {
-  const client = new Client({
-    host      :  process.env.DB_HOST          ||  '127.0.0.1',
-    port      :  Number(process.env.DB_PORT)  ||  5432,
-    user      :  process.env.DB_USERNAME      ||  'postgres',
-    password  :  process.env.DB_PASSWORD      ||  'password',
-  });
-
-  await client.connect();
-
-  const res = await client.query(
-    "SELECT 1 FROM pg_database WHERE datname = $1",
-    [databaseName]
-  );
-
-  if (res.rowCount === 0) {
-    console.log(`⚙️ Database ${databaseName} belum ada. Membuat baru...`);
-    await client.query(`CREATE DATABASE "${databaseName}"`);
-    console.log(`✅ Database ${databaseName} berhasil dibuat.`);
-  }
-
-  await client.end();
-}
-
-
 function extractTableName(file: string): string | null {
   const filename = path.basename(file, path.extname(file))
   const filenameParts = filename.split("_")
@@ -129,4 +122,74 @@ function extractTableName(file: string): string | null {
   if (filtered.length === 0) return null
 
   return filtered.join("_")
+}
+
+
+async function ensureDatabaseExists(databaseName: string) {
+  const driver = (process.env.DB_CONNECTION || "pg").toLowerCase();
+  
+  switch (driver) {
+    case "pg":
+    case "pgsql": {
+      sutando.addConnection({
+        client: "pg",
+        connection: {
+          host: process.env.DB_HOST || "127.0.0.1",
+          port: Number(process.env.DB_PORT) || 5432,
+          user: process.env.DB_USERNAME || "postgres",
+          password: process.env.DB_PASSWORD || "password",
+          database: "postgres",
+        },
+      });
+
+      const tempDb = sutando.connection();
+      try {
+        const exists = await tempDb
+        .table("pg_database")
+        .where("datname", databaseName)
+        .count();
+        
+        if (!exists) {
+          console.log(`⌛ Database ${databaseName} belum ada. Membuat baru...`);
+          await tempDb.raw(`CREATE DATABASE "${databaseName}"`);
+          console.log(`✅ Database ${databaseName} berhasil dibuat.`);
+        }
+      } catch (err) {
+        console.error("❌ Gagal memeriksa/membuat database:", err);
+      }
+      break;
+    }
+
+    case "mysql":
+    case "mysql2": {
+      sutando.addConnection({
+        client: "mysql2",
+        connection: {
+          host: process.env.DB_HOST || "127.0.0.1",
+          port: Number(process.env.DB_PORT) || 3306,
+          user: process.env.DB_USERNAME || "root",
+          password: process.env.DB_PASSWORD || "",
+        },
+      });
+
+      const tempDb = sutando.connection();
+
+      try {
+        const [rows] = await tempDb.raw(`SHOW DATABASES LIKE '${databaseName}'`);
+        const exists = rows.length > 0;
+
+        if (!exists) {
+          console.log(`⌛ Database ${databaseName} belum ada. Membuat baru...`);
+          await tempDb.raw(`CREATE DATABASE \`${databaseName}\``);
+          console.log(`✅ Database ${databaseName} berhasil dibuat.`);
+        }
+      } catch (err) {
+        console.error("❌ Gagal memeriksa/membuat database:", err);
+      }
+      break;
+    }
+
+    default:
+      throw new Error(`Driver ${driver} belum didukung oleh ensureDatabaseExists().`);
+  }
 }

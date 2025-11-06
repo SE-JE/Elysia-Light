@@ -1,10 +1,19 @@
-import { sutando, Model } from 'sutando'
+import { sutando } from 'sutando'
+
+
 
 // ==============================>
-// ## Database connection
+// ## DB: Database supported
+// ==============================>
+const database = process.env.DB_CONNECTION ? (['pgsql', 'pg'].includes(process.env.DB_CONNECTION) ? "pg" : ['mysql', 'mysql2'].includes(process.env.DB_CONNECTION) ? "mysql2" : "pg") : "pg"
+
+
+
+// ==============================>
+// ## DB: Init database connection
 // ==============================>
 sutando.addConnection({
-  client      :  process.env.DB_CONNECTION    || 'pg',
+  client      :  database,
   connection  :  {
     host      :  process.env.DB_HOST          ||  '127.0.0.1',
     port      :  Number(process.env.DB_PORT)  ||  5432,
@@ -23,21 +32,3 @@ sutando.addConnection({
 })
 
 export const db  =  sutando.connection()
-
-
-
-// =================================>
-// ## add apply function to model
-// =================================>
-const origQuery  =  Model.query
-
-Model.query = function (...args: any) {
-  const query = origQuery.apply(this, args)
-  if (!(query as any).apply) {
-    ;(query as any).apply = function (fn: (q: any) => any) {
-      return fn(this)
-    }
-  }
-  return query
-}
-

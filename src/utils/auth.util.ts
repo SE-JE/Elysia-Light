@@ -1,14 +1,21 @@
 import crypto from 'crypto'
-import User from '@/models/User'
-import { db } from './db.utils'
-import { Context } from 'elysia'
+import { db } from '@utils'
+import { User } from '@models'
+
+
 
 // =====================================>
 // ## Auth: User Access Token
 // =====================================>
 const TOKEN_PLAIN_LENGTH = 20
 
+
+
 export const Auth = {
+
+  // =====================================>
+  // ## Auth: create access token with user id
+  // =====================================>
   async createAccessToken(userId: number) {
     const plain = crypto.randomBytes(TOKEN_PLAIN_LENGTH).toString('hex')
     const hash = crypto.createHash('sha256').update(plain).digest('hex')
@@ -30,11 +37,21 @@ export const Auth = {
       tokenId  : record.id
     }
   },
-  
+
+
+
+  // =====================================>
+  // ## Auth: delete access token with user id
+  // =====================================>
   async revokeAccessToken(id: number) {
     return db.table('user_access_tokens').where("id", id).delete()
   },
-  
+
+
+
+  // =====================================>
+  // ## Auth: verify access token
+  // =====================================>
   async verifyAccessToken(token: string) {
     let idPart: string | null = null
     let plain = token
@@ -66,7 +83,7 @@ export const Auth = {
 
 
   // =====================================>
-  // ## Auth: User Mail Token
+  // ## Auth: create user mail token
   // =====================================>
   async createUserMailToken(userId: number) {
     const token = Math.floor(100000 + Math.random() * 900000).toString()
@@ -90,6 +107,11 @@ export const Auth = {
     }
   },
 
+
+
+  // =====================================>
+  // ## Auth: Verify user mail token
+  // =====================================>
   async verifyUserMailToken(userId: number, token: string) {
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 

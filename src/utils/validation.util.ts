@@ -1,8 +1,10 @@
 import validator from "validator"
-import { db } from "./db.utils"
+import { db } from "@utils"
+
+
 
 // ==========================>
-// ## Rules of validation
+// ## Validation: Rules of validation
 // ==========================>
 type RuleName =
   | "required"
@@ -27,29 +29,10 @@ type RuleName =
 export type Rules = Record<string, string>
 
 export interface ValidationResult {
-  valid: boolean
-  errors: Record<string, string[]>
+  valid   :  boolean
+  errors  :  Record<string, string[]>
 }
 
-
-// ==================================>
-// ## Payload nested field
-// ==================================>
-function getNestedValue(obj: any, path: string): any {
-  if (!obj || typeof obj !== "object") return undefined
-
-  const normalizedPath = path
-    .replace(/\[(\w+)\]/g, '.$1')
-    .replace(/\['([^']+)'\]/g, '.$1')
-    .replace(/\["([^"]+)"\]/g, '.$1')
-
-  return normalizedPath.split('.').reduce((acc, key) => {
-    if (acc && Object.prototype.hasOwnProperty.call(acc, key)) {
-      return acc[key]
-    }
-    return undefined
-  }, obj)
-}
 
 
 // ==================================>
@@ -208,9 +191,26 @@ export async function validate(data: Record<string, any>, rules: Rules): Promise
 }
 
 
+
 // ==================================>
-// ## Error validation rules
+// ## Validation helpers
 // ==================================>
+function getNestedValue(obj: any, path: string): any {
+  if (!obj || typeof obj !== "object") return undefined
+
+  const normalizedPath = path
+    .replace(/\[(\w+)\]/g, '.$1')
+    .replace(/\['([^']+)'\]/g, '.$1')
+    .replace(/\["([^"]+)"\]/g, '.$1')
+
+  return normalizedPath.split('.').reduce((acc, key) => {
+    if (acc && Object.prototype.hasOwnProperty.call(acc, key)) {
+      return acc[key]
+    }
+    return undefined
+  }, obj)
+}
+
 function addError(errors: Record<string, string[]>, field: string, message: string) {
   errors[field] = [...(errors[field] || []), message]
 }

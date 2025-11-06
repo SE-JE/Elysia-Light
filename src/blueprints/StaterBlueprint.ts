@@ -1,5 +1,10 @@
-import { blueprint } from "@/utils/commands/runner/blueprint";
+import { blueprint } from "@utils/commands/runner/blueprint";
 
+
+
+// =================================>
+// ## Run of stater blueprint
+// =================================>
 export class StarterBlueprint {
   async run() {
     await blueprint([

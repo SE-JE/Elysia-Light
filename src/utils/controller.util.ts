@@ -1,18 +1,62 @@
-import { Elysia } from "elysia";
 import fs from "fs";
 import path from "path";
-import { validate, Rules } from "./validate.utils";
+import "elysia";
+import { Elysia, Context } from "elysia";
+import { validate, Rules } from "@utils";
+
+
+
+declare module "elysia" {
+  interface ControllerContext extends Context {
+    getQuery                :  {
+        sortDirection       :  string;
+        sortBy              :  string;
+        paginate            :  number;
+        filter              :  Record<string, string>;
+        search              :  string;
+        searchable          :  string[];
+        selectable          :  string[];
+        expand              :  string[];
+    };
+
+    responseData            :  (
+        data                :  any[],
+        totalRow           ?:  number,
+        message            ?:  string,
+        columns            ?:  string[]
+    ) => { 
+      status                : number; 
+      body                  : any 
+    };
+
+    validation              :  (rules: any) => any;
+    responseError           :  (...args: any[]) => any;
+    responseErrorValidation :  (errors: Record<string, string[]>) => any;
+    responseSaved           :  (data: any, message?: string) => any;
+    responseSuccess         :  (data: any, message?: string) => any;
+    uploadFile              :  (file: File, folder?: string) => Promise<string>;
+    deleteFile              :  (filePath: string) => void;
+    user                   ?:  any
+    payload                ?:  any
+  }
+}
+
+
 
 export const Controller = (app: Elysia) => app.derive(({ query, body, status }) => ({
+
   // =====================================>
   // ## Basic fetching data query
   // =====================================>
   getQuery: {
-      sortDirection  :  query.sortDirection      ||  "DESC",
-      sortBy         :  query.sortBy             ||  "created_at",
-      paginate       :  Number(query.paginate)   ||  10,
-      filter         :  query.filter             ||  "[]",
-      search         :  query.search             ||  "",
+      sortDirection  :  query.sortDirection                 ||  "DESC",
+      sortBy         :  query.sortBy                        ||  "created_at",
+      search         :  query.search                        ||  "",
+      paginate       :  query.paginate   ? Number(query.paginate)              :  10,
+      filter         :  query.filter     ? JSON.parse(query.filter)      :  [],
+      searchable     :  query.searchable ? JSON.parse(query.searchable)  :  [],
+      selectable     :  query.selectable ? JSON.parse(query.selectable)  :  [],
+      expand         :  query.selectable ? JSON.parse(query.expand)      :  [],
   },
 
 
@@ -125,7 +169,6 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
   // ==================================>
   deleteFile: (filePath: string) => {
     if (fs.existsSync(filePath)) { fs.unlinkSync(filePath); return true; }
-
     return false;
   },
 }));

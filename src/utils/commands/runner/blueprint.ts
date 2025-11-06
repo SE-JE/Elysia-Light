@@ -2,18 +2,22 @@ import fs from "fs";
 import path from "path";
 import readline from "readline";
 import { Command } from "commander";
-import { StarterBlueprint } from "../../../blueprints/StaterBlueprint";
-import { BaseBlueprint } from "../../../blueprints/index";
-import { Str } from "../../formatters/str.utils";
+import { conversion } from "@utils";
+import { StarterBlueprint } from "@blueprints/StaterBlueprint";
+import { BaseBlueprint } from "@blueprints/index";
 import { migrationTimestampFormat } from "../make/basic-migration";
 
+
+
 export interface BlueprintSchemaTypes {
-  model: string;
-  schema?: Record<string, string>;
-  relations?: Record<string, string>;
-  controllers?: Record<string, string> | false;
-  seeders?: any[][];
+  model         :  string;
+  schema       ?:  Record<string, string>;
+  relations    ?:  Record<string, string>;
+  controllers  ?:  Record<string, string> | false;
+  seeders      ?:  any[][];
 }
+
+
 
 function renderArray(arr: string[]): string {
   return `${arr.map((a) => `"${a}"`).join(", ")}`;
@@ -27,14 +31,16 @@ function extractSchema(schema: Record<string, string>) {
   return obj;
 }
 
+
+
 // ============================>
-// ## Light Model Generation
+// ## Command: blueprint model generation
 // ============================>
 export async function modelGeneration(
-  model: string,
-  schema: Record<string, string> = {},
-  relations: Record<string, string> = {}
-): Promise<boolean> {
+  model      :  string,
+  schema     :  Record<string, string> = {},
+  relations  :  Record<string, string> = {}
+) : Promise<boolean> {
   const name = model;
   const basePath = path.join(process.cwd(), "src", "models");
   const filePath = path.join(basePath, `${name}.ts`);
@@ -64,14 +70,14 @@ export async function modelGeneration(
     if (relationType.startsWith("[]")) {
       const relatedModel = relation[0].substring(2);
       const method = `
-  relation${Str.pascal(relationName)}s() {
+  relation${conversion.strPascal(conversion.strPlural(relationName))}() {
     return this.hasMany(${relatedModel}${fk}${ok});
   }`;
       modelRelations.push(method);
     } else {
       const relatedModel = relation[0];
       const method = `
-  relation${Str.pascal(relationName)}() {
+  relation${conversion.strPascal(relationName)}() {
     return this.belongsTo(${relatedModel}${fk}${ok});
   }`;
       modelRelations.push(method);
@@ -101,18 +107,18 @@ export async function modelGeneration(
 
 
 // ==================================>
-// ## ## Light Migration Generation
+// ## Command: Blueprint migration generation
 // ==================================>
 export async function migrationGeneration(
-  model: string,
-  schema: Record<string, string> = {}
-): Promise<boolean> {
-  const name       =  Str.snake(model) + "s";
+  model   :  string,
+  schema  :  Record<string, string> = {}
+) : Promise<boolean> {
+  const name       =  conversion.strSnake(conversion.strPlural(model));
   const basePath   =  path.join(process.cwd(), "src","database", "migrations");
   const timestamp  =  new Date(Date.now());
   const filename   =  `${migrationTimestampFormat(timestamp)}_create_${name}_table.ts`;
   const filePath   =  path.join(basePath, filename);
-  const className  =  `create${Str.pascal(name)}Table`
+  const className  =  `create${conversion.strPascal(name)}Table`
 
   const existingMigrations = fs
     .readdirSync(basePath)
@@ -151,11 +157,12 @@ export async function migrationGeneration(
     // if (definition.includes("foreignIdFor")) {
     //   const foreign = /foreignIdFor:(\w+),?(\d+)?/.exec(definition);
     //   if (foreign) {
-    //     columnDef += `.foreignIdFor(${Str.pascal(foreign[1])}, ${
+    //     columnDef += `.foreignIdFor(${conversion.strPascal(foreign[1])}, ${
     //       foreign[2] ?? ""
     //     })`;
     //   }
     // }
+
     if (definition.includes("unique")) {
       columnDef += `.unique()`;
     }
@@ -191,14 +198,14 @@ export async function migrationGeneration(
 
 
 // ================================>
-// ## Light Controller Generation
+// ## Command: Blueprint controller generation
 // ================================>
 export async function controllerGeneration(
-  model: string,
-  schema: Record<string, string> = {},
-  relations: Record<string, string> = {},
-  initialName = "",
-  route = ""
+  model        :  string,
+  schema       :  Record<string, string>  =  {},
+  relations    :  Record<string, string>  =  {},
+  initialName  :  string                  =  "",
+  route        :  string                  =  ""
 ) {
   const basePath = path.join(process.cwd(), "src", "controllers");
 
@@ -222,7 +229,7 @@ export async function controllerGeneration(
   }
 
   const validations: Record<string, string> = {};
-  const tableName = Str.snake(Str.pluralStudly(Str.pascal(model)));
+  const tableName = conversion.strSnake(conversion.strPlural(conversion.strPascal(model)));
 
   for (const [column, rules] of Object.entries(schema)) {
     const typeMatch = rules.match(/type:(\w+)/);
@@ -285,9 +292,13 @@ export async function controllerGeneration(
 
 
 // =============================>
-// ## Route Generation
+// ## Command: Blueprint route generation
 // =============================>
-function apiRouteGeneration(model: string, controllerPath: string, route?: string) {
+function apiRouteGeneration(
+  model            :  string,
+  controllerPath   :  string,
+  route           ?:  string
+) {
   const routesPath = path.join(process.cwd(), "src", "routes", "index.ts");
 
   const slug = route || model
@@ -329,22 +340,21 @@ function apiRouteGeneration(model: string, controllerPath: string, route?: strin
     const returnLine = indent + "return route;";
     fileContent = beforeReturn + "\n" + returnLine + afterReturn.slice(afterReturn.indexOf("return route;") + "return route;".length);
     
-    fs.writeFileSync(routesPath, fileContent, "utf-8");
-    console.log(`✅ Route '${slug}' ditambahkan dengan format rapi.`);
+    fs.writeFileSync(routesPath, fileContent, "utf-8")
   } else {
-    console.log("⚠️ Baris 'return route;' tidak ditemukan, tidak bisa menambahkan route.");
+    console.log("❌ Baris 'return route;' tidak ditemukan, tidak bisa menambahkan route.");
   }
 }
 
 
 // =================================>
-// ## Light Seeder Generation
+// ## Command: Blueprint seeder generation
 // =================================>
 export async function seederGeneration(
-  model: string,
-  schema: Record<string, string> = {},
-  data: any[][] = []
-): Promise<boolean> {
+  model   :  string,
+  schema  :  Record<string, string> = {},
+  data    :  any[][] = []
+) : Promise<boolean> {
   const basePath = path.join(process.cwd(), "src", "database", "seeders");
   const filePath = path.join(basePath, `${model}Seeder.ts`);
 
@@ -382,7 +392,7 @@ export async function seederGeneration(
 
 
 // =========================================>
-// ## Documentation Generation
+// ## Command: Blueprint documentation generation
 // =========================================>
 export async function documentationGeneration(
   documentations: Array<Record<string, any>>
@@ -465,8 +475,7 @@ export async function documentationGeneration(
   const collection = {
     info: {
       name: collectionName,
-      schema:
-        "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+      schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     },
     item: folders,
   };
@@ -479,7 +488,7 @@ export async function documentationGeneration(
 
 
 // =======================>
-// ## Blueprint engine
+// ## Command: Blueprint engine
 // =======================>
 export async function blueprint(structs: BlueprintSchemaTypes[]) {
   const documentations: Array<Record<string, any>> = [];
@@ -490,13 +499,10 @@ export async function blueprint(structs: BlueprintSchemaTypes[]) {
     const seeders = struct.seeders ?? [];
     const controllers = struct.controllers ?? {};
 
-    // Generate Model
     await modelGeneration(struct.model, schema, relations);
 
-    // Generate Migrate
     await migrationGeneration(struct.model, schema);
 
-    // Generate Controller
     if (controllers !== false) {
       if (Object.keys(controllers).length > 0) {
         for (const [route, controller] of Object.entries(controllers)) {
@@ -504,9 +510,7 @@ export async function blueprint(structs: BlueprintSchemaTypes[]) {
         }
         documentations.push({ controllers, schema, seeders });
       } else {
-        const defaultRoute = Str.slug(
-          Str.snake(Str.pluralStudly(struct.model.replace("Controller", "")), "-")
-        );
+        const defaultRoute = conversion.strSlug(conversion.strSnake(conversion.strPlural(struct.model.replace("Controller", "")), "-"));
         await controllerGeneration(struct.model, schema, relations);
         documentations.push({
           controllers: [{ [defaultRoute]: null }],
@@ -516,18 +520,17 @@ export async function blueprint(structs: BlueprintSchemaTypes[]) {
       }
     }
 
-    // Generate Seeder
-    if (seeders.length > 0) {
-      await seederGeneration(struct.model, schema, seeders);
-    }
+    if (seeders.length > 0) await seederGeneration(struct.model, schema, seeders);
   }
 
-  // Generate Documentation
   await documentationGeneration(documentations);
 }
 
 
 
+// =======================>
+// ## Command: Blueprint runner choice
+// =======================>
 async function askChoice(message: string, choices: string[]): Promise<string> {
   return new Promise((resolve) => {
     console.log(message);
@@ -556,7 +559,7 @@ async function askChoice(message: string, choices: string[]): Promise<string> {
 
 
 // =====================================>
-// ## Blueprint runner command
+// ## Command: blueprint
 // =====================================>
 export const blueprintCommand = new Command("blueprint")
   .argument("[blueprint]", "Name of blueprint")
@@ -564,7 +567,7 @@ export const blueprintCommand = new Command("blueprint")
   .action(async (blueprint?: string) => {
     if (blueprint) {
       try {
-        const modulePath = `../blueprints/${Str.pascal(blueprint)}Blueprint`;
+        const modulePath = `../blueprints/${conversion.strPascal(blueprint)}Blueprint`;
         const { default: RunnerClass } = await import(modulePath);
 
         const runner = new RunnerClass();
