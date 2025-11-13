@@ -2,7 +2,6 @@ import { status } from "elysia"
 import { Model as SutandoModel, ModelNotFoundError } from "sutando"
 
 
-
 export interface ModelApplyOptions {
   parentTable  ?:  string;
   parentId     ?:  number | string;
@@ -152,7 +151,7 @@ export class Model extends SutandoModel {
     payload  :  Record<string, any>       //? payload body
   ) {
     const fillable = (this as any).fillable || []
-    console.log((this as any).fillable);
+    
     const filtered: Record<string, any>  =  {}
 
     for (const key of fillable) {
@@ -247,41 +246,59 @@ export class Model extends SutandoModel {
 const origQuery = SutandoModel.query
 
 SutandoModel.query = function (...args: any) {
+  const modelClass = this
 
-  const query = origQuery.apply(this, args)
-
+  const query = origQuery.apply(modelClass, args)
+  ;(query as any).$model = modelClass
 
 
   // =================================>
-  // ## Model: findOrNotFound()
+  // ## findOrNotFound()
   // =================================>
   if (!(query as any).findOrNotFound) {
-    ;(query as any).findOrNotFound = async function (
-      id  :  number | string                               //? id of record
-    ) {
+    ;(query as any).findOrNotFound = async function (id: number | string) {
       try {
         return await this.findOrFail(id)
       } catch (error: any) {
-        if (error instanceof ModelNotFoundError) {
-          throw status(404, { message: "Error: Record not found!" })
-        }
+
+        if (error instanceof ModelNotFoundError) throw status(404, { message: "Error: Record not found!" });
+
         throw error
       }
     }
   }
 
 
+  // =================================>
+  // ## firstOrNotFound()
+  // =================================>
+  if (!(query as any).firstOrNotFound) {
+    ;(query as any).firstOrNotFound = async function () {
+      try {
+        const record = await this.first()
+
+        if (!record) throw status(404, { message: "Error: Record not found!" });
+
+        return record
+      } catch (error: any) {
+        throw error
+      }
+    }
+  }
+
 
   // =================================>
-  // ## Model: search()
+  // ## search()
   // =================================>
   if (!(query as any).search) {
     ;(query as any).search = function (
-      keyword             :  string,                      //? keyword of record
-      includes            :  string[] = [],               //? searchable includes
-      searchable          :  string[] = []                //? custom searchable 
+      keyword     :  string,
+      includes    :  string[] = [],
+      searchable  :  string[] = []
     ) {
-      const model              =  (this as any).$model
+      const model = (this as any).$model
+      if (!model) return this
+
       const instance           =  new model()
       const defaultSearchable  =  instance.searchable || []
       const mergedSearchable   =  searchable?.length ? searchable : [...defaultSearchable, ...includes]
@@ -292,9 +309,7 @@ SutandoModel.query = function (...args: any) {
         mergedSearchable.forEach((column) => {
           if (column.includes(".")) {
             const [relation, col] = column.split(".")
-            q.orWhereHas(relation, (rel: any) =>
-              rel.where(col, "ILIKE", `%${keyword}%`)
-            )
+            q.orWhereHas(relation, (rel: any) => rel.where(col, "ILIKE", `%${keyword}%`))
           } else {
             q.orWhere(column, "ILIKE", `%${keyword}%`)
           }
@@ -306,9 +321,8 @@ SutandoModel.query = function (...args: any) {
   }
 
 
-
   // =================================>
-  // ## Model: filter()
+  // ## filter()
   // =================================>
   if (!(query as any).filter) {
     ;(query as any).filter = function (filters?: Record<string, string>) {
@@ -345,24 +359,162 @@ SutandoModel.query = function (...args: any) {
   }
 
 
-
   // =================================>
-  // ## Model: selects()
+  // ## selects()
   // =================================>
   if (!(query as any).selects) {
     ;(query as any).selects = function (
-      selectableIncludes: string[] = [],
-      selectable: string[] = []
+      selectableIncludes: string[]  =  [],
+      selectable        : string[]  =  []
     ) {
       const model = (this as any).$model
+      if (!model) return this
+
       const instance = new model()
       const defaultSelectable = instance.selectable || ["*"]
-      this.select(
-        selectable?.length ? selectable : [...defaultSelectable, ...selectableIncludes]
-      )
+
+      this.select(selectable?.length ? selectable : [...defaultSelectable, ...selectableIncludes])
+
       return this
     }
   }
+
+
+  // =================================>
+  // ## sorts()
+  // =================================>
+  if (!(query as any).sorts) {
+    ;(query as any).sorts = function (sorts?: string[]) {
+      if (!Array.isArray(sorts) || sorts.length === 0) return this;
+
+      sorts.forEach((sortExpr) => {
+        if (typeof sortExpr !== "string") return;
+
+        const parts = sortExpr.trim().split(/\s+/);
+        const column = parts[0];
+        const direction = (parts[1] || "asc").toLowerCase();
+
+        if (!["asc", "desc"].includes(direction)) {
+          this.orderBy(column, "asc");
+        } else {
+          this.orderBy(column, direction);
+        }
+      });
+
+      return this;
+    };
+  }
+
+
+  // =================================>
+  // ## expand()
+  // =================================>
+  if (!(query as any).expand) {
+    ;(query as any).expand = function (relations: string[] = []) {
+      if (!Array.isArray(relations) || relations.length === 0) return this
+
+      relations.forEach((entry) => {
+        const [relation, cols] = entry.split(":")
+        const columns = cols?.split(",").map((c) => c.trim())
+
+        if (columns && columns.length > 0) {
+          this.with(relation, (q: any) => q.select(columns))
+        } else {
+          this.with(relation)
+        }
+      })
+
+      return this
+    }
+  }
+
+
+  // =================================>
+  // ## option()
+  // =================================>
+  if (!(query as any).option) {
+    ;(query as any).option = async function (selectableOption?: string[]) {
+      const modelClass = (this as any).$model;
+      const q = this.clone();
+
+      let defaultSelectable: string[] = [];
+      if (modelClass) {
+        const instance = new modelClass();
+        defaultSelectable = instance.selectable || [];
+      }
+
+      let processedCols: string[] = [];
+
+      if (!Array.isArray(selectableOption) || selectableOption.length === 0) {
+        const labelCol = defaultSelectable.length > 0 ? defaultSelectable[0] : "name";
+
+        processedCols = [`id as value`, `${labelCol} as label`];
+      } else {
+        processedCols = selectableOption.map((col, index) => {
+          const hasAlias = /\s+as\s+/i.test(col);
+          if (!hasAlias) {
+            if (index === 0) return `${col} as value`;
+            if (index === 1) return `${col} as label`;
+          }
+          return col;
+        });
+      }
+
+      q.select(processedCols);
+
+      return await q.get();
+    };
+  }
+
+
+  // =================================>
+  // ## paginateOrOption()
+  // =================================>
+  if (!(query as any).paginateOrOption) {
+    ;(query as any).paginateOrOption = async function (
+      page                =  1,
+      limit               =  10,
+      option                      ?:  string | boolean,
+      selectableOption            ?:  string[],
+    ) {
+      const isOption = ["true", "1", "yes"].includes(String(option).toLowerCase());
+
+      if (isOption) {
+        const data = await this.option(selectableOption);
+        return { data, total: data.length };
+      }
+
+      const result = await this.paginate(page, limit);
+      return { data: result.items().toJSON(), total: result.total() };
+    };
+  }
+
+
+
+  // =================================>
+  // ## resolve()
+  // =================================>
+  if (!(query as any).resolve) {
+    ;(query as any).resolve = async function (input: any = {}) {
+      const gq = input?.getQuery ? input.getQuery : input
+      const isOption = input?.headers?.["X-OPTIONS"] || gq?.isOption || false
+      
+      try {
+        this.expand?.(gq.expand).search?.(gq.search, [], gq.searchable).filter?.(gq.filter).selects?.([], gq.selectable).sorts?.(gq.sort)
+
+        if (isOption || gq.paginate) return await this.paginateOrOption?.(gq.page, gq.paginate, isOption, gq.selectableOption)
+
+        const data = await this.get()
+        return { data, total: data.length }
+      } catch (error: any) {
+        if (error instanceof ModelNotFoundError) throw status(404, { message: "Error: Record not found!", data: [] });
+
+        throw status(500, { message: "Error: " + error })
+      }
+      
+    }
+  }
+
 
   return query
 }

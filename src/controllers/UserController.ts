@@ -7,16 +7,12 @@ export class UserController {
   // ## Display a listing of the resource.
   // ========================================>
   static async index(c: ControllerContext) {
-    const users = await User.query().with(c.getQuery.expand)
-        .search(c.getQuery.search, [], c.getQuery.searchable)
-        .filter(c.getQuery.filter)
-        .selects([], c.getQuery.selectable)
-        .orderBy(c.getQuery.sortBy, c.getQuery.sortDirection)
-        .paginate(1,c.getQuery.paginate)
+    console.log(c.query);
     
-    c.responseData(users.items().toJSON(), users.total())
+    const users = await User.query().resolve(c);
+    
+    c.responseData(users.data, users.total)
   }
-
 
   // =============================================>
   // ## Store a newly created resource.

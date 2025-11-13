@@ -9,21 +9,23 @@ import { validate, Rules } from "@utils";
 declare module "elysia" {
   interface ControllerContext extends Context {
     getQuery                :  {
-        sortDirection       :  string;
-        sortBy              :  string;
-        paginate            :  number;
-        filter              :  Record<string, string>;
-        search              :  string;
-        searchable          :  string[];
-        selectable          :  string[];
-        expand              :  string[];
+      paginate            :  number;
+      page                :  number;
+      sort                :  string[];
+      filter              :  Record<string, string>;
+      search              :  string;
+      searchable          :  string[];
+      selectable          :  string[];
+      selectableOption    :  string[];
+      expand              :  string[];
     };
 
     responseData            :  (
-        data                :  any[],
-        totalRow           ?:  number,
-        message            ?:  string,
-        columns            ?:  string[]
+      data                :  any[],
+      totalRow           ?:  number,
+      message            ?:  string,
+      columns            ?:  string[],
+      access             ?:  string[]
     ) => { 
       status                : number; 
       body                  : any 
@@ -49,14 +51,15 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
   // ## Basic fetching data query
   // =====================================>
   getQuery: {
-      sortDirection  :  query.sortDirection                 ||  "DESC",
-      sortBy         :  query.sortBy                        ||  "created_at",
-      search         :  query.search                        ||  "",
-      paginate       :  query.paginate   ? Number(query.paginate)              :  10,
-      filter         :  query.filter     ? JSON.parse(query.filter)      :  [],
-      searchable     :  query.searchable ? JSON.parse(query.searchable)  :  [],
-      selectable     :  query.selectable ? JSON.parse(query.selectable)  :  [],
-      expand         :  query.selectable ? JSON.parse(query.expand)      :  [],
+    page              :  query.page              ?   Number(query.page)                                  :    1,
+    paginate          :  query.paginate          ?   Number(query.paginate)                              :    10,
+    search            :  query.search            ?   query.search                                        :    "",
+    sort              :  query.sort              ?   JSON.parse(query.sort)                        :   ["created_at desc"],
+    filter            :  query.filter            ?   JSON.parse(query.filter)                      :    [],
+    searchable        :  query.searchable        ?   JSON.parse(query.searchable)                  :    [],
+    selectable        :  query.selectable        ?   JSON.parse(query.selectable)                  :    [],
+    selectableOption  :  query.selectableOption  ?   JSON.parse(query.selectableOption)            :    [],
+    expand            :  query.selectable        ?   JSON.parse(query.expand)                      :    [],
   },
 
 
