@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import readline from "readline";
 import { Command } from "commander";
-import { conversion } from "@utils";
+import { conversion, logger } from "@utils";
 import { StarterBlueprint } from "@blueprints/StaterBlueprint";
 import { BaseBlueprint } from "@blueprints/index";
 import { migrationTimestampFormat } from "../make/basic-migration";
@@ -342,7 +342,7 @@ function apiRouteGeneration(
     
     fs.writeFileSync(routesPath, fileContent, "utf-8")
   } else {
-    console.log("❌ Baris 'return route;' tidak ditemukan, tidak bisa menambahkan route.");
+    logger.error("Baris 'return route;' tidak ditemukan, tidak bisa menambahkan route.")
   }
 }
 
@@ -549,7 +549,7 @@ async function askChoice(message: string, choices: string[]): Promise<string> {
       if (index >= 0 && index < choices.length) {
         resolve(choices[index]);
       } else {
-        console.log("❌ Pilihan tidak valid, default ke:", choices[0]);
+        logger.error("Pilihan tidak valid, default ke:", choices[0])
         resolve(choices[0]);
       }
     });
@@ -573,9 +573,9 @@ export const blueprintCommand = new Command("blueprint")
         const runner = new RunnerClass();
         await runner.run();
 
-        console.log(`✅ Successfully Generated ${blueprint} Blueprint.`);
+        logger.info(`Successfully Generated ${blueprint} Blueprint!`)
       } catch (err) {
-        console.error(`❌ Blueprint ${blueprint} Not Found!`);
+        logger.error(`Blueprint ${blueprint} Not Found!`)
       }
     } else {
       const runChoice = await askChoice("Choose what you want to run?", [
@@ -585,10 +585,10 @@ export const blueprintCommand = new Command("blueprint")
 
       if (runChoice === "Run Starter Blueprint") {
         await new StarterBlueprint().run();
-        console.log("✅ Successfully Generated Starter Blueprints");
+        logger.info(`Successfully Generated Starter Blueprints!`)
       } else {
         await new BaseBlueprint().run();
-        console.log("✅ Successfully Generated Registered Blueprints");
+        logger.info(`Successfully Generated Registered Blueprints!`)
       }
     }
   });

@@ -6,11 +6,9 @@ export class UserController {
   // ========================================>
   // ## Display a listing of the resource.
   // ========================================>
-  static async index(c: ControllerContext) {
-    console.log(c.query);
-    
+  static async index(c: ControllerContext) {    
     const users = await User.query().resolve(c);
-    
+  
     c.responseData(users.data, users.total)
   }
 
@@ -25,7 +23,7 @@ export class UserController {
 
     const trx = await db.beginTransaction()
     let record = {};
-
+    
     try {
       record = await new User().pump(c.body as Record<string, any>, { trx })            
     } catch (err) {

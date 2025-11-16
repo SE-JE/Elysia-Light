@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import nodemailer, { SentMessageInfo } from "nodemailer";
+import { logger } from "@utils";
 
 
 
@@ -46,7 +47,7 @@ export async function sendMail(options: {
     attachments  :  options.attachments,
   })) as SentMessageInfo;
 
-  console.log("✅ Email terkirim:", info.messageId);
+  logger.info("Email sent successfully:", info.messageId)
   return info;
 }
 

@@ -4,9 +4,12 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "barrels": "bun run src/utils/commands/barrels.ts",
-    "dev": "concurrently --raw \"bun barrels\" \"bun run --watch src/app.ts\"",
+    "light": "bun src/utils/commands/light.ts",
+    "dev": "concurrently --raw \"bun run --watch src/app.ts\" \"bun barrels\" \"bun start:cron\" \"bun start:queue\"",
+  
     "start": "bun run src/app.ts",
-    "light": "bun src/utils/commands/light.ts"
+    "start:cron": "bun run src/jobs/crons/workers.ts",
+    "start:queue": "bun run src/jobs/queues/workers.ts"
   },
   "dependencies": {
     "elysia": "latest",

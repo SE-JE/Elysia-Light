@@ -1,6 +1,6 @@
 import os from 'os'
 import { Elysia } from 'elysia'
-import { Controller, db, Middleware, redis, storage } from "@utils"
+import { Controller, db, logger, Middleware, redis, storage } from "@utils"
 import { routes } from '@routes/.'
 
 
@@ -20,7 +20,7 @@ export const app  =  new Elysia()
 // ## Init: database
 // =====================================>
 db.schema
-console.log(`🚀 Database connected ${process.env.DB_DATABASE}!`)
+logger.start(`Database connected ${process.env.DB_DATABASE}!`)
 
 
 
@@ -29,11 +29,11 @@ console.log(`🚀 Database connected ${process.env.DB_DATABASE}!`)
 // =====================================>
 if (process.env.REDIS_HOST && process.env.REDIS_PORT) {
   redis.on("connect", () => {
-    console.log(`🚀 Redis connected ${process.env.REDIS_HOST}:${process.env.REDIS_PORT}!`)
+    logger.start(`Redis connected ${process.env.REDIS_HOST}:${process.env.REDIS_PORT}!`)
   })
 
   redis.on("error", (err) => {
-    console.error("❌ Redis error:", err)
+    logger.error("Redis error:", err)
   })
 }
 
@@ -52,7 +52,8 @@ function getLocalIP() {
 }
 
 app.listen({ port: process.env.APP_PORT, hostname: '0.0.0.0' })
-console.log(`🚀 Server is running at http://localhost:${process.env.APP_PORT || 4000} && http://${getLocalIP()}:${process.env.APP_PORT || 4000}!`)
+setTimeout(() => logger.start(`Server is running at \n        [LOCAL]    http://localhost:${process.env.APP_PORT || 4000} \n        [NETWORK]  http://${getLocalIP()}:${process.env.APP_PORT || 4000}!`), 200)
+
 
 
 

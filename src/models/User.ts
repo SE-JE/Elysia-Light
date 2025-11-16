@@ -14,8 +14,8 @@ export class User extends Model {
     // ## Selectable
     // ====================>
     public selectable  =  [
-        "id",
         "name",
+        "id",
         "email",
         "created_at"
     ]

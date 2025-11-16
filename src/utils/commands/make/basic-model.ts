@@ -1,6 +1,7 @@
 import path from "path";
 import fs, { writeFileSync, mkdirSync, existsSync } from "fs";
 import { Command } from "commander";
+import { logger } from "@utils";
 
 
 
@@ -23,7 +24,7 @@ const makeModelCommand = new Command("make:model")
     content  =  content.replace(/{{\s*name\s*}}/g, name || "")
 
     writeFileSync(filePath, content);
-    console.log(`✅ Model ${fileName} created!`);
+    logger.info(`Model ${fileName} created!`);
   });
 
 export default makeModelCommand;

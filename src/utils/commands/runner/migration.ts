@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { Command } from "commander";
 import { sutando } from "sutando";
+import { logger } from "@utils";
 
 
 
@@ -76,7 +77,7 @@ async function runMigrationFile() {
 
   let countMigrated = 0;
 
-  console.log("⌛ Running migrations...");
+  logger.info("Running migrations...")
 
   for (const file of files) {
     if (migrated.includes(file)) continue
@@ -86,7 +87,7 @@ async function runMigrationFile() {
     if (tableName) {
       const exists = await db.schema.hasTable(tableName)
       if (exists) {
-        console.error(`❌ Table "${tableName}" already exists`)
+        logger.error(`Table "${tableName}" already exists`)
         process.exit(1);
       }
     }
@@ -97,16 +98,16 @@ async function runMigrationFile() {
       const migr = new MigrationClass();
       await migr.up(db.schema);
       await db.table("migrations").insert({ name: file });
-      console.log(`Migrated: ${file}...`);
+      logger.info(`Migrated: ${file}`)
     }
 
     countMigrated++
   }
 
   if(countMigrated > 0) {
-    console.log(`✅ Success run all migration!`);
+    logger.info(`Success run all migration!`);
   } else {
-    console.warn(`❗ Nothing to migrate!`);
+    logger.info(`Nothing to migrate!`)
   }
 }
 
@@ -150,12 +151,12 @@ async function ensureDatabaseExists(databaseName: string) {
         .count();
         
         if (!exists) {
-          console.log(`⌛ Database ${databaseName} belum ada. Membuat baru...`);
+          logger.info(`Database ${databaseName} not found. Create new database...`)
           await tempDb.raw(`CREATE DATABASE "${databaseName}"`);
-          console.log(`✅ Database ${databaseName} berhasil dibuat.`);
+          logger.info(`Database ${databaseName} successfully created.`)
         }
       } catch (err) {
-        console.error("❌ Gagal memeriksa/membuat database:", err);
+        logger.error("Check or created database error:", err)
       }
       break;
     }
@@ -179,12 +180,12 @@ async function ensureDatabaseExists(databaseName: string) {
         const exists = rows.length > 0;
 
         if (!exists) {
-          console.log(`⌛ Database ${databaseName} belum ada. Membuat baru...`);
+          logger.info(`Database ${databaseName} not found. Create new database...`)
           await tempDb.raw(`CREATE DATABASE \`${databaseName}\``);
-          console.log(`✅ Database ${databaseName} berhasil dibuat.`);
+          logger.info(`Database ${databaseName} successfully created.`)
         }
       } catch (err) {
-        console.error("❌ Gagal memeriksa/membuat database:", err);
+        logger.error("Check or created database error:", err)
       }
       break;
     }

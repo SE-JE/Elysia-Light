@@ -1,6 +1,7 @@
 import path from "path";
 import fs, { writeFileSync, mkdirSync, existsSync } from "fs";
 import { Command } from "commander";
+import { logger } from "@utils";
 
 
 
@@ -27,7 +28,7 @@ const makeMigrationCommand = new Command("make:migration")
     content  =  content.replace(/{{\s*tableName\s*}}/g, tableName || "")
 
     writeFileSync(filePath, content);
-    console.log(`✅ Migration ${fileName} created!`);
+    logger.info(`Migration ${fileName} created!`);
   });
 
 export default makeMigrationCommand;

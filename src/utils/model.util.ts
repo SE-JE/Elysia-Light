@@ -334,6 +334,7 @@ SutandoModel.query = function (...args: any) {
 
         const applyWhere = (q: any, col: string) => {
           switch (type) {
+            case "li": q.where(col, "ILIKE", `%${value}%`); break
             case "eq": q.where(col, value); break
             case "ne": q.where(col, "!=", value); break
             case "in": q.whereIn(col, value.split(",")); break

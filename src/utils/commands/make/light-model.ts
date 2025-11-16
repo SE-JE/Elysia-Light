@@ -1,6 +1,7 @@
 import path from "path";
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from "fs";
 import { Command } from "commander";
+import { logger } from "@utils";
 
 
 
@@ -20,7 +21,7 @@ const makeLightModelCommand  =  new Command("make:light-model")
     const filePath  =  path.join(basePath, `${name}.ts`);
 
     if (existsSync(filePath)) {
-      console.error(`❌ Model ${name} sudah ada!`);
+      logger.error(`Model ${name} already exists!`);
       return;
     }
 
@@ -34,7 +35,7 @@ const makeLightModelCommand  =  new Command("make:light-model")
 
     writeFileSync(filePath, stub);
 
-    console.log(`✅ Successfully Create Light Model ${name}...`);
+    logger.info(`Successfully create light model ${name}!`);
   });
 
 export default makeLightModelCommand;

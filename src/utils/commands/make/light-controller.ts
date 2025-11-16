@@ -1,6 +1,7 @@
 import path from "path";
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from "fs";
 import { Command } from "commander";
+import { logger } from "@utils";
 
 
 
@@ -16,7 +17,7 @@ const makeLightControllerCommand = new Command("make:light-controller")
     const basePath = path.join(process.cwd(), "src", "controllers");
 
     if (!initialName || initialName.trim() === "") {
-      console.error("❌ Controller Name Invalid..!");
+      logger.error("Controller name invalid!");
       process.exit(1);
     }
 
@@ -28,14 +29,14 @@ const makeLightControllerCommand = new Command("make:light-controller")
     const filePath = path.join(basePath, `${initialName}.ts`);
 
     if (existsSync(filePath)) {
-      console.error("❌ Controller already exists..!");
+      logger.error("Controller already exists!");
       process.exit(1);
     }
 
     const targetDir = folder ? path.join(basePath, folder) : basePath;
     if (!existsSync(targetDir)) {
       mkdirSync(targetDir, { recursive: true });
-      console.log(`📂 Create folder ${targetDir}...`);
+      logger.info(`Create folder ${targetDir}...`);
     }
 
     const stubPath = path.join(process.cwd(), "src", "utils", "commands", "make", "stubs", "light-controller.stub");
@@ -62,7 +63,7 @@ const makeLightControllerCommand = new Command("make:light-controller")
     );
 
     writeFileSync(filePath, stub);
-    console.log(`✅ Successfully Create Light Controller: ${filePath}`);
+    logger.info(`Successfully create light controller: ${filePath}!`);
   });
 
 export default makeLightControllerCommand;

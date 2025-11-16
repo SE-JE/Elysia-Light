@@ -1,6 +1,7 @@
 import path from "path";
 import fs, { writeFileSync, mkdirSync, existsSync } from "fs";
 import { Command } from "commander";
+import { logger } from "@utils";
 
 
 
@@ -21,7 +22,7 @@ const makeSeederCommand = new Command("make:seeder")
     content  =  content.replace(/{{\s*name\s*}}/g, name || "")
 
     writeFileSync(filePath, content, { flag: "wx" });
-    console.log(`✅ Seeder ${name} created`);
+    logger.info(`Seeder ${name} created`);
   });
 
 export default makeSeederCommand;

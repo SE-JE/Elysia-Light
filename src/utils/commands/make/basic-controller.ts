@@ -1,6 +1,7 @@
 import path from "path";
 import fs, { writeFileSync, mkdirSync, existsSync } from "fs";
 import { Command } from "commander";
+import { logger } from "@utils";
 
 
 
@@ -20,7 +21,7 @@ const makeControllerCommand  =  new Command("make:controller")
 
     const exists  =  fs.readdirSync(filePath).some((f: any) => f.includes(`${name}.ts`));
     if (exists) {
-      console.error(`❌ Controller "${name}" already exists!`);
+      logger.error(`Controller "${name}" already exists!`);
       process.exit(1);
     }
     
@@ -29,7 +30,7 @@ const makeControllerCommand  =  new Command("make:controller")
     content = content.replace(/{{\s*name\s*}}/g, name || "")
 
     writeFileSync(filePath + "/" + fileName, content);
-    console.log(`✅ Controller ${fileName} created!`);
+    logger.info(`Controller ${fileName} created!`);
   });
 
 export default makeControllerCommand;

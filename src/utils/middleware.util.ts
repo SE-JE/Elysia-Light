@@ -1,5 +1,5 @@
 import { Elysia, status } from 'elysia'
-import { Auth } from '@utils'
+import { Auth, logger } from '@utils'
 
 
 
@@ -47,7 +47,7 @@ export const Middleware = {
                   allowedOrigin = origin || ""
               }
           } catch (e) {
-              console.error('Error: Failed to parse CORS_ORIGINS, fallback to "*"')
+              logger.error('Error: Failed to parse CORS_ORIGINS, fallback to "*"')
               allowedOrigin = ''
           }
       }
@@ -88,7 +88,7 @@ export const Middleware = {
         rawBody = {};
       }
     } catch (e) {
-      console.error("Parse error:", e);
+      logger.error("Body parse error:", e)
       rawBody = {};
     }
 
