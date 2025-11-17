@@ -31,6 +31,7 @@ const makeLightModelCommand  =  new Command("make:light-model")
       .replace(/{{\s*fillable\s*}}/g, "")
       .replace(/{{\s*searchable\s*}}/g, "")
       .replace(/{{\s*selectable\s*}}/g, "")
+      .replace(/{{\s*import\s*}}/g, "")
       .replace(/{{\s*relations\s*}}/g, "");
 
     writeFileSync(filePath, stub);

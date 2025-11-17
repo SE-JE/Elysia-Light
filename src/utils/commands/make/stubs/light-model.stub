@@ -1,7 +1,7 @@
 import { Model } from '@utils'
 {{ import }}
 
-export default class {{ name }} extends Model {
+export class {{ name }} extends Model {
     // =====================>
     // ## Fillable
     // =====================>

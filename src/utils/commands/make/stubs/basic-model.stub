@@ -1,5 +1,5 @@
 import { Model } from '@utils'
 
-export default class {{ name }} extends Model {
+export class {{ name }} extends Model {
     // something amazing
 }
