@@ -6,7 +6,7 @@ import { createClient } from '@clickhouse/client'
 // ## DW / OLAP : ClickHouse Init
 // ==============================>
 export const dwClient = createClient({
-  host       : (process.env.DW_HOST      || 'http://127.0.0.1') + ':' + (process.env.DW_HOST || '8123'),
+  url        : "http://" + (process.env.DW_HOST      || '127.0.0.1') + ':' + (process.env.DW_PORT || '8123'),
   username   : process.env.DW_USERNAME   || 'default',
   password   : process.env.DW_PASSWORD   || '',
   database   : process.env.DW_DATABASE   || 'default',

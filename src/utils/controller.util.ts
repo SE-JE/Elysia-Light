@@ -68,14 +68,14 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
   // ## Validation request body
   // ===================================>
   validation: async (rules: Rules) => {
-      const result = await validate(body as Record<string, any>, rules);
-      
-      if (!result.valid) {
-          throw status(422, {
-              message: "Error: Unprocessable Entity!",
-              errors: result.errors,
-          })
-      }
+    const result = await validate(body as Record<string, any>, rules);
+    
+    if (!result.valid) {
+      throw status(422, {
+        message: "Error: Unprocessable Entity!",
+        errors: result.errors,
+      })
+    }
   },
 
 
@@ -84,10 +84,10 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
   // ## Response error validation
   // ====================================>
   responseErrorValidation: (errors: Record<string, string[]>) => {
-      throw status(422, {
-          message: "Error: Unprocessable Entity!",
-          errors: errors,
-      })
+    throw status(422, {
+      message: "Error: Unprocessable Entity!",
+      errors: errors,
+    })
   },
 
 
@@ -96,30 +96,29 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
   // ## Response error
   // ====================================>
   responseError: (error: string, section?: string, message?: string, debug = process.env.APP_DEBUG) => {
-      if (debug) {
-          throw status(500, {
-              message  :  message ?? "Error: Server Side Having Problem!",
-              error    :  error ?? "unknown",
-              section  :  section ?? "unknown",
-          })
-      }
-
+    if (debug) {
       throw status(500, {
-          message: message ?? "Error: Server Side Having Problem!"
+        message  :  message ?? "Error: Server Side Having Problem!",
+        error    :  error ?? "unknown",
+        section  :  section ?? "unknown",
       })
+    }
+
+    throw status(500, {
+      message: message ?? "Error: Server Side Having Problem!"
+    })
   },
 
 
   // ====================================> 
   // ## Response record
   // ====================================>
-  responseData: (data: any[], totalRow?: number, message?: string, columns?: string[]) => {
-      throw status(200, {
-          message    :  message ?? (data.length ? "Success" : "Empty data"),
-          data       :  data ?? [],
-          total_row  :  totalRow ?? null,
-          columns    :  columns ?? null,
-      });
+  responseData: (data: any[], totalRow?: number, message?: string) => {
+    throw status(200, {
+      message    :  message ?? (data.length ? "Success" : "Empty data"),
+      data       :  data ?? [],
+      total_row  :  totalRow ?? null,
+    });
   },
 
 
@@ -129,8 +128,8 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
   // ===================================>
   responseSuccess: (data: any, message?: string, code?: 200 | 201) => {
     throw status(code || 200, {
-        message  :  message ?? "Success",
-        data     :  data ?? [],
+      message  :  message ?? "Success",
+      data     :  data ?? [],
     })
   },
 
@@ -141,8 +140,8 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
   // ===================================>
   responseSaved: (data: any, message?: string) => {
     throw status(201, {
-        message  :  message ?? "Success",
-        data     :  data ?? [],
+      message  :  message ?? "Success",
+      data     :  data ?? [],
     })
   },
 
