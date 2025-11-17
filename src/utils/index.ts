@@ -5,6 +5,8 @@ export * from "./controller.util";
 export * from "./conversion.util";
 export * from "./cron.util";
 export * from "./db.util";
+export * from "./dw.util";
+export * from "./dw-migration.util";
 export * from "./mail.util";
 export * from "./middleware.util";
 export * from "./model.util";

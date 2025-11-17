@@ -3,14 +3,14 @@ import { sutando } from 'sutando'
 
 
 // ==============================>
-// ## DB: Database supported
+// ## DB / OLTP : Database driver
 // ==============================>
 const database = process.env.DB_CONNECTION ? (['pgsql', 'pg'].includes(process.env.DB_CONNECTION) ? "pg" : ['mysql', 'mysql2'].includes(process.env.DB_CONNECTION) ? "mysql2" : "pg") : "pg"
 
 
 
 // ==============================>
-// ## DB: Init database connection
+// ## DB / OLTP : Sutando init
 // ==============================>
 sutando.addConnection({
   client      :  database,

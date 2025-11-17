@@ -4,6 +4,7 @@
     "": {
       "name": "elysia-light",
       "dependencies": {
+        "@clickhouse/client": "^1.13.0",
         "bcrypt": "^6.0.0",
         "dotenv": "^17.2.2",
         "elysia": "latest",
@@ -87,6 +88,10 @@
     "@aws/lambda-invoke-store": ["@aws/lambda-invoke-store@0.0.1", "", {}, "sha512-ORHRQ2tmvnBXc8t/X9Z8IcSbBA4xTLKuN873FopzklHMeqBst7YG0d+AX97inkvDX+NChYtSr+qGfcqGFaI8Zw=="],
 
     "@borewit/text-codec": ["@borewit/text-codec@0.1.1", "", {}, "sha512-5L/uBxmjaCIX5h8Z+uu+kA9BQLkc/Wl06UGR5ajNRxu+/XjonB5i8JpgFMrPj3LXTCPA0pv8yxUvbUi+QthGGA=="],
+
+    "@clickhouse/client": ["@clickhouse/client@1.13.0", "", { "dependencies": { "@clickhouse/client-common": "1.13.0" } }, "sha512-uK+zqPaJnAoq3QIOvUNbHtbWUhyg2A/aSbdJtrY2+kawp4SMBLcfIbB9ucRv5Yht1CAa3b24CiUlypkmgarukg=="],
+
+    "@clickhouse/client-common": ["@clickhouse/client-common@1.13.0", "", {}, "sha512-QlGUMd3EaKkIRLCv0WW8Rw9cOlqhwQPT+ucNWY8eC4UALsMhJLpa0H7Cd7MYc9CEtTv/xlr3IcYw5Tdho4Hr2g=="],
 
     "@ioredis/commands": ["@ioredis/commands@1.4.0", "", {}, "sha512-aFT2yemJJo+TZCmieA7qnYGQooOS7QfNmYrzGtsYd3g9j5iDP8AimYYAesf79ohjbLG12XxC4nG5DyEnC88AsQ=="],
 

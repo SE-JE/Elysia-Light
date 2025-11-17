@@ -16,7 +16,7 @@ export const migrateCommand = new Command("migrate")
 
   await ensureDatabaseExists(process.env.DB_DATABASE || "db_elysia_light");
 
-  const { db } = await import("@/utils/db.util");
+  const { db } = await import("@utils/db.util");
 
   const hasTable = await db.schema.hasTable("migrations");
   if (!hasTable) {
@@ -43,7 +43,7 @@ export const migrateFreshCommand = new Command("migrate:fresh")
 {
   await ensureDatabaseExists(process.env.DB_DATABASE || "db_elysia_light");
 
-  const { db } = await import("@/utils/db.util");
+  const { db } = await import("@utils/db.util");
 
   await db.raw(`DROP SCHEMA public CASCADE;`);
   await db.raw(`CREATE SCHEMA public;`);
@@ -67,7 +67,7 @@ export const migrateFreshCommand = new Command("migrate:fresh")
 // ## Command: migration helpers
 // =====================================>
 async function runMigrationFile() {
-  const { db } = await import("@/utils/db.util");
+  const { db } = await import("@utils/db.util");
 
   const migrations = await db.table("migrations").select("name").get();
   const migrated = migrations.map((row: any) => row.name);

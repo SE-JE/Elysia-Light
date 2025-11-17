@@ -6,19 +6,19 @@
     "barrels": "bun run src/utils/commands/barrels.ts",
     "light": "bun src/utils/commands/light.ts",
     "dev": "concurrently --raw \"bun run --watch src/app.ts\" \"bun barrels\" \"bun start:cron\" \"bun start:queue\"",
-  
     "start": "bun run src/app.ts",
     "start:cron": "bun run src/jobs/crons/workers.ts",
     "start:queue": "bun run src/jobs/queues/workers.ts"
   },
   "dependencies": {
-    "elysia": "latest",
-    "sutando": "^1.7.2",
+    "@clickhouse/client": "^1.13.0",
+    "bcrypt": "^6.0.0",
     "dotenv": "^17.2.2",
-    "tsconfig-paths": "^4.2.0",
+    "elysia": "latest",
     "ioredis": "^5.8.0",
     "nodemailer": "^7.0.9",
-    "bcrypt": "^6.0.0",
+    "sutando": "^1.7.2",
+    "tsconfig-paths": "^4.2.0",
     "validator": "^13.15.15"
   },
   "devDependencies": {
