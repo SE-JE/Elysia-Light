@@ -1,4 +1,4 @@
-type LogType = "start" | "info" | "error" | "warning" | "cron" | "queue" | "queueError" | "cronError";
+type LogType = "start" | "info" | "error" | "warning" | "cron" | "queue" | "queueError" | "cronError" | "socket" | "socketError";
 
 const colors: Record<LogType | "default", string> = {
   default: "\x1b[0m",      // default
@@ -10,6 +10,8 @@ const colors: Record<LogType | "default", string> = {
   queueError: "\x1b[31m",  // red
   cron: "\x1b[35m",        // magenta
   cronError: "\x1b[31m",   // red
+  socket: "\x1b[35m",      // blue
+  socketError: "\x1b[31m", // red
 };
 
 const prefixes: Record<LogType, string> = {
@@ -19,8 +21,10 @@ const prefixes: Record<LogType, string> = {
   warning: "WARNING",
   cron: "CRON",
   queue: "QUEUE",
+  socket: "SOCKET",
   queueError: "QUEUE ERROR",
   cronError: "CRON ERROR",
+  socketError: "SOCKET ERROR",
 };
 
 function log(type: LogType, ...msg: unknown[]) {
@@ -35,7 +39,9 @@ export const logger = {
   error: (...msg: unknown[]) => log("error", ...msg),
   warning: (...msg: unknown[]) => log("warning", ...msg),
   queue: (...msg: unknown[]) => log("queue", ...msg),
-  queueError: (...m: unknown[]) => log("queueError", ...m),
+  queueError: (...msg: unknown[]) => log("queueError", ...msg),
   cron: (...msg: unknown[]) => log("cron", ...msg),
-  cronError: (...m: unknown[]) => log("cronError", ...m),
+  cronError: (...msg: unknown[]) => log("cronError", ...msg),
+  socket: (...msg: unknown[]) => log("socket", ...msg),
+  socketError: (...msg: unknown[]) => log("socketError", ...msg),
 };

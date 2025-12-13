@@ -20,7 +20,7 @@ directories.forEach((dir) => {
   fs.watch(absoluteDir, { recursive: true }, (_, filename) => {
     if (filename && filename.endsWith(".ts") && filename !== "index.ts") {
       exec("bunx barrelsby -c barrels.json", { cwd: rootDir })
-      logger.start("Barrels updated " + absoluteDir + "/index.ts")
+      logger.info("Barrels updated " + absoluteDir + "/index.ts")
     }
   });
 });

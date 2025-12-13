@@ -3,22 +3,22 @@ import { createClient } from '@clickhouse/client'
 
 
 // ==============================>
-// ## DW / OLAP : ClickHouse Init
+// ## DA / OLAP : ClickHouse Init
 // ==============================>
-export const dwClient = createClient({
-  url        : "http://" + (process.env.DW_HOST      || '127.0.0.1') + ':' + (process.env.DW_PORT || '8123'),
-  username   : process.env.DW_USERNAME   || 'default',
-  password   : process.env.DW_PASSWORD   || '',
-  database   : process.env.DW_DATABASE   || 'default',
+export const daClient = createClient({
+  url        : "http://" + (process.env.DA_HOST      || '127.0.0.1') + ':' + (process.env.DW_PORT || '8123'),
+  username   : process.env.DA_USERNAME   || 'default',
+  password   : process.env.DA_PASSWORD   || '',
+  database   : process.env.DA_DATABASE   || 'default',
 })
 
 
 // ==============================>
-// ## DW / OLAP : Query Builder
+// ## DA / OLAP : Query Builder
 // ==============================>
 type WhereValue = string | number | boolean | null
 
-export class DWBuilder {
+export class DABuilder {
   private _insertData: any[] | null = null
   private _updateData: Record<string, any> | null = null
   private _delete = false
@@ -129,7 +129,7 @@ export class DWBuilder {
 
   async execute() {
     const query = this.toSQL()
-    return dwClient.query({ query })
+    return daClient.query({ query })
   }
 
   async get<T = any>() {
@@ -145,16 +145,16 @@ export class DWBuilder {
   }
 }
 
-export const dw = {
+export const da = {
   query() {
-    return new DWBuilder()
+    return new DABuilder()
   },
 
   from(table: string) {
-    return new DWBuilder().from(table)
+    return new DABuilder().from(table)
   },
 
   raw(query: string) {
-    return new DWBuilder().raw(query)
+    return new DABuilder().raw(query)
   }
 }

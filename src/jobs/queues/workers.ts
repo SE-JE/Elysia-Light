@@ -27,4 +27,4 @@ queue.worker("example", async (payload, id) => {
 
 
 
-logger.start(`All queue job workers is running!`)
+logger.start(`Queue job workers is running!`)

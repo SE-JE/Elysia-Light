@@ -6,4 +6,4 @@ import "./index"
 // ## Run of cron job worker.
 // ============================================>
 cron.worker();
-logger.start(`All cron job workers is running!`)
+logger.start(`Cron job workers is running!`)

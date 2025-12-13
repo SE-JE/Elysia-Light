@@ -1,6 +1,6 @@
 import os from 'os'
 import { Elysia } from 'elysia'
-import { Controller, db, logger, Middleware, redis, storage } from "@utils"
+import { Controller, da, db, logger, Middleware, redis, storage } from "@utils"
 import { routes } from '@routes/.'
 
 
@@ -21,6 +21,14 @@ export const app  =  new Elysia()
 // =====================================>
 db.schema
 logger.start(`Database connected ${process.env.DB_DATABASE}!`)
+
+
+
+// =====================================>
+// ## Init: database olap
+// =====================================>
+da.query();
+logger.start(`Database (OLAP) connected ${process.env.DA_DATABASE}!`)
 
 
 
