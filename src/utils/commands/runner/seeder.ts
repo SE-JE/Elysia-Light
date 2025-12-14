@@ -30,7 +30,7 @@ const seederCommand = new Command("seeder")
       logger.info("Success run all seeders!")
       process.exit(0);
     } catch (error) {
-      logger.error("Error running seeds:", error)
+      logger.error(`Error running seeds: ${error}`)
       process.exit(1);
     }
   });

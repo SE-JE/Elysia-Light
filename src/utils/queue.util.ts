@@ -97,7 +97,8 @@ export const queue = {
               logger.queue(`${name} ${job.id} success!`);
             } catch (err) {
               await queue.addFailed(name, job, err);
-              logger.queueError(`${name} ${job.id} failed:`, err);
+              const em = err instanceof Error ? err.message : String(err)
+              logger.queueError(`${name} ${job?.id} error : ${em}`, { error: em, feature: name });
             }
           })();
 
@@ -108,7 +109,8 @@ export const queue = {
           await Promise.all(tasks);
         }
       } catch (err) {
-        logger.queueError(`${name} error:`, err);
+        const em = err instanceof Error ? err.message : String(err)
+        logger.queueError(`${name} error : ${em}`, { error: em, feature: name });
       }
 
       setTimeout(loop, interval);
@@ -133,7 +135,8 @@ export const queue = {
         await queue.add(name, job.payload, job.id);
         logger.queue(`${name} ${job?.id} success!`);
       } catch (err) {
-        logger.queueError(`${name} ${job?.id} error :`, err);
+        const em = err instanceof Error ? err.message : String(err)
+        logger.queueError(`${name} ${job?.id} error : ${em}`, { error: em, feature: name });
       }
     }
 

@@ -6,7 +6,7 @@ import { createClient } from '@clickhouse/client'
 // ## DA / OLAP : ClickHouse Init
 // ==============================>
 export const daClient = createClient({
-  url        : "http://" + (process.env.DA_HOST      || '127.0.0.1') + ':' + (process.env.DW_PORT || '8123'),
+  url        : "http://" + (process.env.DA_HOST      || '127.0.0.1') + ':' + (process.env.DA_PORT || '8123'),
   username   : process.env.DA_USERNAME   || 'default',
   password   : process.env.DA_PASSWORD   || '',
   database   : process.env.DA_DATABASE   || 'default',
@@ -18,143 +18,108 @@ export const daClient = createClient({
 // ==============================>
 type WhereValue = string | number | boolean | null
 
-export class DABuilder {
-  private _insertData: any[] | null = null
-  private _updateData: Record<string, any> | null = null
-  private _delete = false
-  private _select: string[] = []
-  private _from = ""
-  private _where: string[] = []
-  private _order: string[] = []
-  private _limit?: number
-  private _offset?: number
-  private _raw?: string
+class QueryBuilder {
+  private selectCols: string[] = ["*"]
+  private fromTable = ""
+  private whereClauses: string[] = []
+  private orderClauses: string[] = []
+  private limitValue?: number
+  private offsetValue?: number
 
   select(...cols: string[]) {
-    this._select = cols.length ? cols : ["*"]
+    if (cols.length) this.selectCols = cols
     return this
   }
 
   from(table: string) {
-    this._from = table
+    this.fromTable = table
     return this
   }
 
   where(col: string, op: string, value: WhereValue) {
-    const val = typeof value === "string" ? `'${value.replace(/'/g, "''")}'` : value === null ? "NULL" : value
+    const v = value === null ? "NULL" : typeof value === "string" ? `'${value.replace(/'/g, "''")}'` : value
 
-    this._where.push(`${col} ${op} ${val}`)
+    this.whereClauses.push(`${col} ${op} ${v}`)
     return this
   }
 
-  orderBy(col: string, direction: "asc" | "desc" = "asc") {
-    this._order.push(`${col} ${direction.toUpperCase()}`)
+  orderBy(col: string, dir: "asc" | "desc" = "asc") {
+    this.orderClauses.push(`${col} ${dir.toUpperCase()}`)
     return this
   }
 
   limit(n: number) {
-    this._limit = n
+    this.limitValue = n
     return this
   }
 
   offset(n: number) {
-    this._offset = n
-    return this
-  }
-
-  raw(query: string) {
-    this._raw = query
-    return this
-  }
-
-  private formatValue(value: any) {
-    if (typeof value === "string") return `'${value.replace(/'/g, "''")}'`
-    if (value === null) return "NULL"
-    if (typeof value === "boolean") return value ? "1" : "0"
-    return value
-  }
-
-  insert(data: Record<string, any> | Record<string, any>[]) {
-    this._insertData = Array.isArray(data) ? data : [data]
-    return this
-  }
-
-  update(data: Record<string, any>) {
-    this._updateData = data
-    return this
-  }
-
-  delete() {
-    this._delete = true
+    this.offsetValue = n
     return this
   }
 
   toSQL() {
-    if (this._raw) return this._raw
+    if (!this.fromTable) throw new Error("FROM table is required")
 
-    if (!this._from) throw new Error("Missing FROM clause.")
+    let sql = `SELECT ${this.selectCols.join(", ")} FROM ${this.fromTable}`
 
-    if (this._insertData) {
-      const cols = Object.keys(this._insertData[0])
-      const values = this._insertData.map(row => `(${cols.map(c => this.formatValue(row[c])).join(", ")})`).join(", ")
-
-      return `INSERT INTO ${this._from} (${cols.join(", ")}) VALUES ${values}`
-    }
-
-    if (this._updateData) {
-      const sets = Object.entries(this._updateData).map(([k, v]) => `${k} = ${this.formatValue(v)}`).join(", ")
-
-      let sql = `ALTER TABLE ${this._from} UPDATE ${sets}`
-      if (this._where.length) sql += ` WHERE ${this._where.join(" AND ")}`
-      return sql
-    }
-
-    if (this._delete) {
-      let sql = `ALTER TABLE ${this._from} DELETE`
-      if (this._where.length) sql += ` WHERE ${this._where.join(" AND ")}`
-
-      return sql
-    }
-
-    const selectClause = this._select.length ? this._select.join(", ") : "*"
-    let sql = `SELECT ${selectClause} FROM ${this._from}`
-
-    if (this._where.length) sql += ` WHERE ${this._where.join(" AND ")}`
-    if (this._order.length) sql += ` ORDER BY ${this._order.join(", ")}`
-    if (this._limit !== undefined) sql += ` LIMIT ${this._limit}`
-    if (this._offset !== undefined) sql += ` OFFSET ${this._offset}`
+    if (this.whereClauses.length) sql += ` WHERE ${this.whereClauses.join(" AND ")}`
+    if (this.orderClauses.length) sql += ` ORDER BY ${this.orderClauses.join(", ")}`
+    if (this.limitValue !== undefined) sql += ` LIMIT ${this.limitValue}`
+    if (this.offsetValue !== undefined) sql += ` OFFSET ${this.offsetValue}`
 
     return sql
   }
 
-  async execute() {
-    const query = this.toSQL()
-    return daClient.query({ query })
-  }
-
   async get<T = any>() {
-    const res = await this.execute()
-    const json: any = await res.json()
+    const rs = await daClient.query({
+      query: this.toSQL(),
+      format: "JSONEachRow",
+    })
 
-    return json as T[]
+    const text = await rs.text()
+    if (!text.trim()) return []
+
+    return text.trim().split("\n").map(line => JSON.parse(line)) as T[]
   }
 
   async first<T = any>() {
     const rows = await this.limit(1).get<T>()
-    return (rows as any)[0] ?? null
+    return rows[0] ?? null
   }
 }
 
 export const da = {
-  query() {
-    return new DABuilder()
+  // =========================
+  // ## Select
+  // =========================
+  select(...cols: string[]) {
+    return new QueryBuilder().select(...cols)
   },
 
   from(table: string) {
-    return new DABuilder().from(table)
+    return new QueryBuilder().from(table)
   },
 
-  raw(query: string) {
-    return new DABuilder().raw(query)
-  }
+
+  // =========================
+  // ## Insert
+  // =========================
+  insert<T extends Record<string, any>>(table: string, rows: T | T[]) {
+    const data = Array.isArray(rows) ? rows : [rows]
+
+    return daClient.insert({
+      table,
+      values: data,
+      format: "JSONEachRow",
+    })
+  },
+
+
+  // =========================
+  // ## Exec query raw
+  // =========================
+  exec(sql: string) {
+    return daClient.command({ query: sql })
+  },
 }

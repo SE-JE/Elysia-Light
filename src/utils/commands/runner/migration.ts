@@ -145,10 +145,7 @@ async function ensureDatabaseExists(databaseName: string) {
 
       const tempDb = sutando.connection();
       try {
-        const exists = await tempDb
-        .table("pg_database")
-        .where("datname", databaseName)
-        .count();
+        const exists = await tempDb.table("pg_database").where("datname", databaseName).count();
         
         if (!exists) {
           logger.info(`Database ${databaseName} not found. Create new database...`)
@@ -156,7 +153,7 @@ async function ensureDatabaseExists(databaseName: string) {
           logger.info(`Database ${databaseName} successfully created.`)
         }
       } catch (err) {
-        logger.error("Check or created database error:", err)
+        logger.error(`Check or created database error: ${err}`)
       }
       break;
     }
@@ -185,7 +182,7 @@ async function ensureDatabaseExists(databaseName: string) {
           logger.info(`Database ${databaseName} successfully created.`)
         }
       } catch (err) {
-        logger.error("Check or created database error:", err)
+        logger.error(`Check or created database error: ${err}`)
       }
       break;
     }

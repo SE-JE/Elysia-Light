@@ -1,0 +1,15 @@
+import { DAMigration } from "@utils"
+
+export default class {{ className }} extends DAMigration {
+  async up() { 
+    await this.createTable("{{ tableName }}",(table) => {
+      table.uuid()
+    }, {
+      engine: "MergeTree",
+    })
+  }
+
+  async down() { 
+    await this.dropTable("{{ tableName }}")
+  }
+}

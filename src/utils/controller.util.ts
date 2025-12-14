@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import "elysia";
 import { Elysia, Context } from "elysia";
-import { validate, Rules } from "@utils";
+import { validate, Rules, logger } from "@utils";
 
 
 
@@ -95,7 +95,9 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
   // ====================================>
   // ## Response error
   // ====================================>
-  responseError: (error: string, section?: string, message?: string, debug = process.env.APP_DEBUG) => {
+  responseError: (error: string, section?: string, message?: string, debug = (process.env.APP_DEBUG || true)) => {
+    logger.error(`Body parse error: ${error}`, { error: error, feature: section })
+
     if (debug) {
       throw status(500, {
         message  :  message ?? "Error: Server Side Having Problem!",

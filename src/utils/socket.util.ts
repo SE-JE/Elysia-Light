@@ -99,12 +99,12 @@ export const socket = {
     });
 
     io.on("connection", (client: Socket) => {
-      logger.socket("client connected:", client.id);
+      logger.socket(`client connected: ${client.id}`);
 
       socket.event.bind(client);
 
       client.on("disconnect", (reason) => {
-        logger.socket("client disconnected:", client.id, reason);
+        logger.socket(`client disconnected: ${client.id, reason}`);
       });
     });
 

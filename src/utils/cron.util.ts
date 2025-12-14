@@ -49,7 +49,8 @@ export const cron = {
           await job.handler()
           logger.cron(`${job.name} at (${now}) success!`)
         } catch (err) {
-          logger.cronError(`${job.name} at (${now}) error`, err)
+          const em = err instanceof Error ? err.message : String(err)
+          logger.cronError(`${job.name} at (${now}) error : ${em}`, { error: em, reference: job.name, at: minuteKey });
         }
       }
     }, interval)

@@ -1,6 +1,6 @@
 import os from 'os'
 import { Elysia } from 'elysia'
-import { Controller, da, db, logger, Middleware, redis, storage } from "@utils"
+import { Controller, daClient, db, logger, Middleware, redis, storage } from "@utils"
 import { routes } from '@routes/.'
 
 
@@ -8,28 +8,32 @@ import { routes } from '@routes/.'
 // ## Init: middleware & router app
 // =====================================>
 export const app  =  new Elysia()
+  .use(Middleware.AccessLog)
   .use(Middleware.Cors)
   .use(Middleware.BodyParse)
   .use(Controller)
   .use(storage)
   .use(routes)
+  .use(Middleware.ErrorHandler)
 
 
 
 // =====================================>
 // ## Init: database
 // =====================================>
-db.schema
-logger.start(`Database connected ${process.env.DB_DATABASE}!`)
-
+if (process.env.DB_HOST && process.env.DB_PORT && process.env.DB_USERNAME && process.env.DB_PASSWORD && process.env.DB_DATABASE) {
+  db.schema
+  logger.start(`Database connected ${process.env.DB_DATABASE}!`)
+}
 
 
 // =====================================>
 // ## Init: database olap
 // =====================================>
-da.query();
-logger.start(`Database (OLAP) connected ${process.env.DA_DATABASE}!`)
-
+if (process.env.DA_HOST && process.env.DA_PORT && process.env.DA_USERNAME && process.env.DA_PASSWORD && process.env.DA_DATABASE) {
+  daClient.ping();
+  logger.start(`Database (OLAP) connected ${process.env.DA_DATABASE}!`)
+}
 
 
 // =====================================>
@@ -41,8 +45,18 @@ if (process.env.REDIS_HOST && process.env.REDIS_PORT) {
   })
 
   redis.on("error", (err) => {
-    logger.error("Redis error:", err)
+    const em = err instanceof Error ? err.message : String(err)
+    logger.error(`Redis error: ${em}`, { error: em })
   })
+}
+
+
+
+// =====================================>
+// ## Init: logger
+// =====================================>
+if (process.env.ACCESS_LOG_DRIVER == "da" || process.env.ERROR_LOG_DRIVER == "da") {
+  logger.worker()
 }
 
 

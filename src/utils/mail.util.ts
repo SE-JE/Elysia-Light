@@ -47,7 +47,7 @@ export async function sendMail(options: {
     attachments  :  options.attachments,
   })) as SentMessageInfo;
 
-  logger.info("Email sent successfully:", info.messageId)
+  logger.info(`Email sent successfully: ${info.messageId}`)
   return info;
 }
 
