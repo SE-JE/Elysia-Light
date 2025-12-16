@@ -45,7 +45,8 @@ export const Middleware = {
       }
 
       return {
-        user: result.user
+        user: result.user,
+        permissions: result.permissions,
       }
   }),
 

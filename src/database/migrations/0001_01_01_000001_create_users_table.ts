@@ -19,8 +19,9 @@ export default class AddUsersTable extends Migration {
     await db.schema.createTable('user_access_tokens', (table) => {
       table.increments('id').primary()
       table.integer("user_id").unsigned().index().notNullable()
-      table.string('token').unique().notNullable()
+      table.string('token').unique().index().notNullable()
       table.string('type')
+      table.json('permissions').defaultTo([])
       table.timestamp('last_used_at')
       table.timestamp('expired_at')
       table.timestamps(true, true)
@@ -40,5 +41,7 @@ export default class AddUsersTable extends Migration {
   // =========================>
   async down(schema: any) {
     await schema.dropTableIfExists('users');
+    await schema.dropTableIfExists('user_access_tokens');
+    await schema.dropTableIfExists('user_mail_tokens');
   }
 }

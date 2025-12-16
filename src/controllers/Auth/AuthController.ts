@@ -17,7 +17,6 @@ export class AuthController {
         const { email, password } = c.body as Record<string, any>
 
         const result = await User.query().where("email", email).whereNotNull("email_verification_at").first();
-
         if (!result) return c.responseErrorValidation({email: ["E-mail not found!"]})
 
         const user = result.toJSON()
@@ -46,7 +45,6 @@ export class AuthController {
         const { email, password } = c.body as Record<string, any>
 
         const checkRegisteredUser = await User.query().where("email", email).whereNotNull("email_verification_at").first()
-
         if (checkRegisteredUser) c.responseErrorValidation({email: ["Email is registered!"]})
 
         await User.query().where("email", email).whereNull("email_verification_at").delete();
@@ -116,7 +114,7 @@ export class AuthController {
     // ## Edit logged account
     // =============================================>
     static async update(c: ControllerContext) {
-        const model = await User.query().apply(User.findOrNotFound(c.user.id))
+        const model = await User.query().findOrNotFound(c.user.id)
 
         await c.validation({
             name   :  "required",

@@ -22,8 +22,8 @@ const seederCommand = new Command("seeder")
         const { default: seeder } = await import(seederPath);
 
         if (typeof seeder === "function") {
-            logger.info(`Planted: ${file}...`)
-            await seeder();
+          await seeder();
+          logger.info(`Planted: ${file}`)
         }
       }
 

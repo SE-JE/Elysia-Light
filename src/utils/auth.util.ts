@@ -77,7 +77,7 @@ export const Auth = {
   
     const user = await User.query().findOrNotFound(tokenRecord.user_id)
 
-    return { user, token: tokenRecord }
+    return { user, token: tokenRecord, permissions: [] }
   },
 
 

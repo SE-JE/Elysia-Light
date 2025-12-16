@@ -13,6 +13,4 @@ export default async function UserSeeder() {
         email_verification_at: new Date(),
         password: password
     });
-
-    console.log("👤 UserSeeder executed");
 }

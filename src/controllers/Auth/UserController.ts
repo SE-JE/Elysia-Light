@@ -1,6 +1,18 @@
 import type { ControllerContext } from "elysia"
-import { db } from '@utils'
+import { db, permission } from '@utils'
 import { User } from "@models"
+
+export const UserPermission = permission.register({
+  "100": {
+    name: "User Management",
+    accesses: {
+      "01": "View",
+      "02": "create",
+      "03": "update",
+      "04": "delete",
+    }
+  },
+})
 
 export class UserController {
   // ========================================>
@@ -16,6 +28,7 @@ export class UserController {
   // ## Store a newly created resource.
   // =============================================>
   static async store(c: ControllerContext) {
+    
     c.validation({
         name   :  "required",
         email  :  "required",

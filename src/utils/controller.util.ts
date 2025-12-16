@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import "elysia";
 import { Elysia, Context } from "elysia";
-import { validate, Rules, logger } from "@utils";
+import { validate, Rules, logger, KeyPermission } from "@utils";
 
 
 
@@ -36,9 +36,11 @@ declare module "elysia" {
     responseErrorValidation :  (errors: Record<string, string[]>) => any;
     responseSaved           :  (data: any, message?: string) => any;
     responseSuccess         :  (data: any, message?: string) => any;
+    responseForbidden       :  (message?: string) => any;
     uploadFile              :  (file: File, folder?: string) => Promise<string>;
     deleteFile              :  (filePath: string) => void;
     user                   ?:  any
+    permissions            ?:  KeyPermission[],
     payload                ?:  any
   }
 }
@@ -96,7 +98,7 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
   // ## Response error
   // ====================================>
   responseError: (error: string, section?: string, message?: string, debug = (process.env.APP_DEBUG || true)) => {
-    logger.error(`Body parse error: ${error}`, { error: error, feature: section })
+    logger.error(`Error: ${error}`, { error: error, feature: section })
 
     if (debug) {
       throw status(500, {
@@ -108,6 +110,16 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
 
     throw status(500, {
       message: message ?? "Error: Server Side Having Problem!"
+    })
+  },
+
+
+  // ====================================>
+  // ## Response Forbidden
+  // ====================================>
+  responseForbidden: (message?: string) => {
+    throw status(403, {
+      message: message ?? "Access Forbidden!"
     })
   },
 
