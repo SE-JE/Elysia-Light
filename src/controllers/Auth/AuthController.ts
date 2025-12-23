@@ -40,7 +40,7 @@ export class AuthController {
             password  :  "required",
         })
 
-        const trx = await db.beginTransaction()
+        const trx = await db.transaction()
 
         const { email, password } = c.body as Record<string, any>
 
@@ -121,7 +121,7 @@ export class AuthController {
             email  :  "required",
         })
 
-        const trx = await db.beginTransaction()
+        const trx = await db.transaction()
 
         const body = c.body as Record<string, any>;
 

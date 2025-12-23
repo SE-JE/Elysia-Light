@@ -7,7 +7,7 @@ export default async function UserSeeder() {
     // =========================>
     const password: string  = await bcrypt.hash("password", 10)
     
-    await User.query().create({
+    await User.create({
         name: "Admin",
         email: "admin@example.com",
         email_verification_at: new Date(),

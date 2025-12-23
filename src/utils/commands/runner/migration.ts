@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
+import knex from "knex";
 import { Command } from "commander";
-import { sutando } from "sutando";
 import { logger } from "@utils";
 
 
@@ -69,7 +69,7 @@ export const migrateFreshCommand = new Command("migrate:fresh")
 async function runMigrationFile() {
   const { db } = await import("@utils/db.util");
 
-  const migrations = await db.table("migrations").select("name").get();
+  const migrations = await db.table("migrations").select("name");
   const migrated = migrations.map((row: any) => row.name);
 
   const migrationsDir = path.resolve("./src/database/migrations");
@@ -93,10 +93,8 @@ async function runMigrationFile() {
     }
 
     const mod = await import(path.join(migrationsDir, file));
-    const MigrationClass = mod.default;
-    if (MigrationClass) {
-      const migr = new MigrationClass();
-      await migr.up(db.schema);
+    if (mod.up) {
+      await mod.up(db)
       await db.table("migrations").insert({ name: file });
       logger.info(`Migrated: ${file}`)
     }
@@ -127,12 +125,13 @@ function extractTableName(file: string): string | null {
 
 
 async function ensureDatabaseExists(databaseName: string) {
-  const driver = (process.env.DB_CONNECTION || "pg").toLowerCase();
-  
+  const driver = (process.env.DB_CONNECTION || "pg").toLowerCase()
+
   switch (driver) {
+
     case "pg":
     case "pgsql": {
-      sutando.addConnection({
+      const tempDb = knex({
         client: "pg",
         connection: {
           host: process.env.DB_HOST || "127.0.0.1",
@@ -141,26 +140,33 @@ async function ensureDatabaseExists(databaseName: string) {
           password: process.env.DB_PASSWORD || "password",
           database: "postgres",
         },
-      });
+      })
 
-      const tempDb = sutando.connection();
       try {
-        const exists = await tempDb.table("pg_database").where("datname", databaseName).count();
-        
-        if (!exists) {
+        const result = await tempDb
+          .select("datname")
+          .from("pg_database")
+          .where("datname", databaseName)
+          .first()
+
+        if (!result) {
           logger.info(`Database ${databaseName} not found. Create new database...`)
-          await tempDb.raw(`CREATE DATABASE "${databaseName}"`);
+          await tempDb.raw(`CREATE DATABASE "${databaseName}"`)
           logger.info(`Database ${databaseName} successfully created.`)
         }
       } catch (err) {
-        logger.error(`Check or created database error: ${err}`)
+        logger.error(`Check or create database error: ${err}`)
+      } finally {
+        await tempDb.destroy()
       }
-      break;
+
+      break
     }
 
-    case "mysql":
+
+        case "mysql":
     case "mysql2": {
-      sutando.addConnection({
+      const tempDb = knex({
         client: "mysql2",
         connection: {
           host: process.env.DB_HOST || "127.0.0.1",
@@ -168,26 +174,29 @@ async function ensureDatabaseExists(databaseName: string) {
           user: process.env.DB_USERNAME || "root",
           password: process.env.DB_PASSWORD || "",
         },
-      });
-
-      const tempDb = sutando.connection();
+      })
 
       try {
-        const [rows] = await tempDb.raw(`SHOW DATABASES LIKE '${databaseName}'`);
-        const exists = rows.length > 0;
+        const [rows]: any = await tempDb.raw(
+          `SHOW DATABASES LIKE ?`,
+          [databaseName]
+        )
 
-        if (!exists) {
+        if (!rows || rows.length === 0) {
           logger.info(`Database ${databaseName} not found. Create new database...`)
-          await tempDb.raw(`CREATE DATABASE \`${databaseName}\``);
+          await tempDb.raw(`CREATE DATABASE \`${databaseName}\``)
           logger.info(`Database ${databaseName} successfully created.`)
         }
       } catch (err) {
-        logger.error(`Check or created database error: ${err}`)
+        logger.error(`Check or create database error: ${err}`)
+      } finally {
+        await tempDb.destroy()
       }
-      break;
+
+      break
     }
 
     default:
-      throw new Error(`Driver ${driver} belum didukung oleh ensureDatabaseExists().`);
+      throw new Error(`Driver ${driver} belum didukung oleh ensureDatabaseExists().`)
   }
 }

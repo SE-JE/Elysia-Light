@@ -1,30 +1,12 @@
-import { Model } from '@utils/model.util'
+import { Field, Model } from '@utils'
 
 export class User extends Model {
-    // =====================>
-    // ## Fillable
-    // =====================>
-    public fillable    =  [
-        "name",
-        "email",
-        "password"
-    ]
+    @Field(["fillable", "selectable", "searchable"])
+    name!: string
 
-    // ====================>
-    // ## Selectable
-    // ====================>
-    public selectable  =  [
-        "name",
-        "id",
-        "email",
-        "created_at"
-    ]
+    @Field(["fillable", "selectable", "searchable"])
+    email!: string
 
-    // ====================>
-    // ## Searchable
-    // ====================>
-    public searchable  =  [
-        "name",
-        "email"
-    ]
+    @Field(["fillable"])
+    password!: string
 }

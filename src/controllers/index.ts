@@ -5,3 +5,4 @@
 export * from "./BaseController";
 export * from "./Auth/AuthController";
 export * from "./Auth/UserController";
+export * from "./Product/ProductController";
