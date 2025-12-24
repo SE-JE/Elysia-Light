@@ -7,7 +7,7 @@ export class ProductController {
     // ## Display a listing of the resource.
     // ========================================>
     static async index(c: ControllerContext) {
-        const record = await Product.query().expand(["category", "product_locations.location", "profit"]).get()
+        const record = await Product.query().expand(["category", {"product_locations": q => q.limit(1) }, "product_locations.location", "profit"]).get()
         
         c.responseSuccess(record)
         // c.responseData(record.data, record.total)

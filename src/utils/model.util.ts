@@ -66,12 +66,16 @@ const Casts               = {
 // ==========================
 // ## Relation Type
 // ==========================
-export type ModelRelationType        =  'hasMany' | 'belongsTo'
+export type ModelRelationType        =  'hasMany' | 'hasOne' | 'belongsTo' | 'belongsToMany'
 export type ModelRelationDescriptor  =  {
-  type        :  ModelRelationType
-  model       :  () => typeof Model
-  foreignKey  :  string
-  localKey    :  string
+  type           :  ModelRelationType
+  model          :  () => typeof Model
+  foreignKey     :  string
+  localKey       :  string
+  pivotTable    ?:  string
+  pivotLocal    ?:  string
+  pivotForeign  ?:  string
+  callback      ?:  (q: any) => void
 }
 
 
@@ -148,7 +152,7 @@ export interface ModelQueryBuilder<T extends Record<string, any> = Record<string
   sorts(sorts?: string[]): this
 
   with(relation: string, callback?: any): this
-  expand(relations?: string[]): this
+  expand(relations?: Array<string | Record<string, (q: any) => void>>): this
 
   whereHas(
     relation: string,
@@ -973,33 +977,40 @@ export function extendModelQuery(
   // =================================>
   // ## Expand query (Eager loading)
   // =================================>
-  ;(query as any).expand = function (entries: string[] = []) {
+  ;(query as any).expand = function (entries: Array<string | Record<string, (q: any) => void>> = []) {
     if (!Array.isArray(entries) || !entries.length) return this
 
     if (!this._withTree) this._withTree = {}
 
-    const Model = this.$model
-    const attributes = Model.attributes ?? {}
+    const applyPath = (
+      path: string,
+      callback?: (q: any) => void
+    ) => {
+      const parts = path.split('.')
+      let cur = this._withTree
+      let node: any
+
+      for (const part of parts) {
+        cur[part] ??= { __children: {} }
+        node = cur[part]
+        cur = node.__children
+      }
+
+      if (callback && node) {
+        node.__callback = callback
+      }
+    }
 
     for (const entry of entries) {
-      if (attributes[entry]) {
-        this._withTree[entry] = { __attribute: true }
+      if (typeof entry === 'string') {
+        applyPath(entry)
         continue
       }
 
-      const [path, cols] = entry.split(':')
-      const parts = path.split('.')
-
-      let cur = this._withTree
-      for (const part of parts) {
-        cur[part] ??= { __children: {} }
-        cur = cur[part].__children
-      }
-
-      if (cols) {
-        const node = parts.reduce((a, p) => a[p], this._withTree)
-        node.__callback = (q: any) =>
-          q.select(cols.split(',').map(c => c.trim()))
+      if (typeof entry === 'object') {
+        for (const [path, cb] of Object.entries(entry)) {
+          applyPath(path, cb)
+        }
       }
     }
 
@@ -1295,21 +1306,40 @@ export function Field(defs: string[]) {
 export function HasMany(
   model       :  () => typeof Model,
   foreignKey  :  string,
-  localKey    :  string               =  'id'
+  localKey    :  string               =  'id',
+  callback?   : (q: any) => void
 ) {
-  return (target: any, key: string) => pushRelation(target, key, { type: 'hasMany', model, foreignKey, localKey })
+  return (target: any, key: string) => pushRelation(target, key, { type: 'hasMany', model, foreignKey, localKey, callback })
+}
+
+export function HasOne(
+  model      : () => typeof Model,
+  foreignKey : string,
+  localKey   : string = 'id',
+  callback?   : (q: any) => void
+) {
+  return (target: any, key: string) => pushRelation(target, key, { type: 'hasOne', model, foreignKey, localKey, callback })
 }
 
 export function BelongsTo(
   model       :  () => typeof Model,
   foreignKey  :  string,
-  ownerKey    :  string               =  'id'
+  ownerKey    :  string               =  'id',
+  callback?   : (q: any) => void
 ) {
-  return function (target: any, key: string) {
-    pushRelation(target, key, { type: 'belongsTo', model, foreignKey, localKey: ownerKey })
-  }
+  return (target: any, key: string) => pushRelation(target, key, { type: 'belongsTo', model, foreignKey, localKey: ownerKey, callback })
 }
 
+export function BelongsToMany(
+  model          : () => typeof Model,
+  pivotTable     : string,
+  pivotLocal     : string,
+  pivotForeign   : string,
+  localKey       : string = 'id',
+  callback?   : (q: any) => void
+) {
+  return (target: any, key: string) => pushRelation(target, key, { type: 'belongsToMany', model, localKey, foreignKey: localKey, pivotTable, pivotLocal, pivotForeign, callback })
+}
 
 
 // =================================>
@@ -1406,9 +1436,9 @@ function parseWith(list: string[]) {
 // ## Load relation model helpers
 // =================================>
 async function loadRelations(
-  rows: any[],
-  Model: any,
-  tree: Record<string, any>
+  rows   :  any[],
+  Model  :  any,
+  tree   :  Record<string, any>
 ) {
   if (!rows.length) return
 
@@ -1423,8 +1453,16 @@ async function loadRelations(
       related = await loadBelongsTo(rows, desc, name, node.__callback)
     }
 
+    if (desc.type === 'belongsToMany') {
+      related = await loadBelongsToMany(rows, desc, name, node.__callback)
+    }
+
     if (desc.type === 'hasMany') {
       related = await loadHasMany(rows, desc, name, node.__callback)
+    }
+
+    if (desc.type === 'hasOne') {
+      related = await loadHasOne(rows, desc, name, node.__callback)
     }
 
     if (
@@ -1451,12 +1489,51 @@ async function loadBelongsTo(
   }
 
   const q = rel.model().query().whereIn(rel.localKey, ids)
+
+  rel.callback?.(q)
   callback?.(q)
 
   const related = rel.model().hydrate(await q)
   const map = new Map(related.map((r: any) => [String(r[rel.localKey]), r]))
 
   rows.forEach(r => (r[name] = map.get(String(r[rel.foreignKey])) ?? null))
+
+  return related
+}
+
+
+async function loadBelongsToMany(
+  rows: any[],
+  rel: any,
+  name: string,
+  callback?: (q: any) => void
+) {
+  const ids = rows.map(r => r[rel.localKey])
+  if (!ids.length) {
+    rows.forEach(r => (r[name] = []))
+    return []
+  }
+
+  const Related = rel.model()
+  const relatedTable = Related.getTable()
+
+  const q = Related.query()
+    .join(rel.pivotTable, `${relatedTable}.${Related.primaryKey}`, '=', `${rel.pivotTable}.${rel.pivotForeign}`)
+    .whereIn(`${rel.pivotTable}.${rel.pivotLocal}`, ids)
+
+  rel.callback?.(q)
+  callback?.(q)
+
+  const related = Related.hydrate(await q)
+
+  const grouped: Record<string, any[]> = {}
+
+  for (const r of related) {
+    const pivotValue = (r as any)[rel.pivotLocal]
+    ;(grouped[pivotValue] ??= []).push(r)
+  }
+
+  rows.forEach(r => r[name] = grouped[r[rel.localKey]] ?? [])
 
   return related
 }
@@ -1471,6 +1548,8 @@ async function loadHasMany(rows: any[], rel: any, name: string, callback?: (q: a
   }
 
   const q = rel.model().query().whereIn(rel.foreignKey, ids)
+
+  rel.callback?.(q)
   callback?.(q)
 
   const related = rel.model().hydrate(await q)
@@ -1485,6 +1564,33 @@ async function loadHasMany(rows: any[], rel: any, name: string, callback?: (q: a
   return related
 }
 
+
+async function loadHasOne(
+  rows: any[],
+  rel: any,
+  name: string,
+  callback?: (q: any) => void
+) {
+  const ids = rows.map(r => r[rel.localKey])
+  if (!ids.length) {
+    rows.forEach(r => (r[name] = null))
+    return []
+  }
+
+  const q = rel.model().query().whereIn(rel.foreignKey, ids)
+
+  rel.callback?.(q)
+  callback?.(q)
+
+  const related = rel.model().hydrate(await q)
+  const map = new Map(
+    related.map((r: any) => [String(r[rel.foreignKey]), r])
+  )
+
+  rows.forEach(r => r[name] = map.get(String(r[rel.localKey])) ?? null)
+
+  return related
+}
 
 
 
@@ -1529,16 +1635,20 @@ function whereHasSubquery(
   parentQuery[method](function (this: Knex.QueryBuilder) {
     this.select(1).from(relatedTable)
 
-    if (desc.type === 'hasMany') {
-      this.whereRaw(
-        `${relatedTable}.${desc.foreignKey} = ${parentTable}.${desc.localKey}`
-      )
+    if (desc.type === 'hasMany' || desc.type === 'hasOne') {
+      this.whereRaw(`${relatedTable}.${desc.foreignKey} = ${parentTable}.${desc.localKey}`)
     }
 
     if (desc.type === 'belongsTo') {
-      this.whereRaw(
-        `${relatedTable}.${desc.localKey} = ${parentTable}.${desc.foreignKey}`
-      )
+      this.whereRaw(`${relatedTable}.${desc.localKey} = ${parentTable}.${desc.foreignKey}`)
+    }
+
+    if (desc.type === 'belongsToMany') {
+      const pivot = desc.pivotTable
+
+      this.join(pivot, `${pivot}.${desc.pivotForeign}`, '=', `${relatedTable}.${Related.primaryKey}`)
+
+      this.whereRaw(`${pivot}.${desc.pivotLocal} = ${parentTable}.${desc.localKey}`)
     }
 
     if (relations.length > 1) {
@@ -1548,6 +1658,8 @@ function whereHasSubquery(
 
     if (callback) {
       const qb = Related.query().from(relatedTable)
+
+      desc.callback?.(qb)
       callback(qb)
 
       this.whereExists(qb)
@@ -1577,23 +1689,26 @@ function applyWithAggregates(query: any) {
     const fn = item.fn as AggregateType
     const sub = (db(Related.getTable()) as any)[fn](item.column)
 
-    if (desc.type === 'hasMany') {
-      sub.whereRaw(
-        `${relatedTable}.${desc.foreignKey} = ${parentTable}.${desc.localKey}`
-      )
+    if (desc.type === 'hasMany' || desc.type === 'hasOne') {
+      sub.whereRaw(`${relatedTable}.${desc.foreignKey} = ${parentTable}.${desc.localKey}`)
     }
 
     if (desc.type === 'belongsTo') {
-      sub.whereRaw(
-        `${relatedTable}.${desc.localKey} = ${parentTable}.${desc.foreignKey}`
-      )
+      sub.whereRaw(`${relatedTable}.${desc.localKey} = ${parentTable}.${desc.foreignKey}`)
     }
 
+    if (desc.type === 'belongsToMany') {
+      const pivot = desc.pivotTable
+
+      sub.join(pivot, `${pivot}.${desc.pivotForeign}`, '=', `${relatedTable}.${Related.primaryKey}`)
+
+      sub.whereRaw(`${pivot}.${desc.pivotLocal} = ${parentTable}.${desc.localKey}`)
+    }
+
+    desc.callback?.(sub)
     item.callback?.(sub)
 
-    query.select(
-      query.client.raw(`(${sub.toQuery()}) as ${item.alias}`)
-    )
+    query.select(query.client.raw(`(${sub.toQuery()}) as ${item.alias}`))
   }
 }
 
@@ -1635,10 +1750,9 @@ function applyOrderByAggregates(query: any) {
       sub.whereNull(Related.getDeletedAtColumn())
     }
 
+    desc.callback?.(sub)
     item.callback?.(sub)
 
-    query.orderByRaw(
-      `(${sub.toQuery()}) ${item.direction}`
-    )
+    query.orderByRaw(`(${sub.toQuery()}) ${item.direction}`)
   }
 }
