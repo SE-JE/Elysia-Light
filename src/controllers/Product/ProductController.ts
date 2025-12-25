@@ -7,10 +7,9 @@ export class ProductController {
     // ## Display a listing of the resource.
     // ========================================>
     static async index(c: ControllerContext) {
-        const record = await Product.query().expand(["category", {"product_locations": q => q.limit(1) }, "product_locations.location", "profit"]).get()
+        const record = await Product.query().resolve(c)
         
-        c.responseSuccess(record)
-        // c.responseData(record.data, record.total)
+        c.responseData(record.data, record.total)
     }
 
 
@@ -21,18 +20,20 @@ export class ProductController {
         c.validation({})
 
         const trx = await db.transaction()
-        
-        // const record = new Product().dumpField(c.body as Record<string, any>)
+
+        let record =  new Product()
 
         try {
-            // await new Product().pump({ trx })            
+            record = await record.pump(c.body as Product)     
         } catch (err) {
             await trx.rollback()
+
             c.responseError(err as Error, "Create Model")
         }
 
         await trx.commit()
-        // c.responseSaved(record.toJSON())
+
+        c.responseSaved(record)
     }
 
 

@@ -61,7 +61,7 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
     searchable        :  query.searchable        ?   JSON.parse(query.searchable)                  :    [],
     selectable        :  query.selectable        ?   JSON.parse(query.selectable)                  :    [],
     selectableOption  :  query.selectableOption  ?   JSON.parse(query.selectableOption)            :    [],
-    expand            :  query.selectable        ?   JSON.parse(query.expand)                      :    [],
+    expand            :  query.expand            ?   JSON.parse(query.expand)                      :    [],
   },
 
 

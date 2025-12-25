@@ -28,6 +28,18 @@ export type FieldMeta = {
 
 
 // ==========================
+// ## Payload Type
+// ==========================
+type NonFunctionKeys<T> = {
+  [K in keyof T]: T[K] extends Function ? never : K
+}[keyof T]
+
+type DataShape<T> = Pick<T, NonFunctionKeys<T>>
+
+type ModelPayload<T> = Partial<DataShape<T>>
+
+
+// ==========================
 // ## Cast Type
 // ==========================
 export type ModelCastType = 'string' | 'number' | 'boolean' | 'date' | 'json'
@@ -431,87 +443,113 @@ export abstract class Model {
 
 
   // ==========================
+  // ## Fill model from payload
+  // ==========================
+  fill<T extends this>(this: T, payload: ModelPayload<T>): T {
+    const ctor = this.constructor as typeof Model
+    const fields = ctor.fields
+
+    for (const [key, value] of Object.entries(payload)) {
+      const meta = fields[key]
+      if (!meta || !meta.fillable) continue
+      ;(this as any)[key] = value
+    }
+
+    return this
+  }
+
+  // ==========================
   // ## Create from fillable
   // ==========================
   static async create<T extends typeof Model>(
-    this      :  T,
-    payload   :  Record<string, any>,
-    trx      ?:  Knex.Transaction
-  )           :  Promise<InstanceType<T>> {
-    const instance = this.newInstance()
+    this: T,
+    payload: ModelPayload<InstanceType<T>>,
+    trx?: Knex.Transaction
+  ): Promise<InstanceType<T>> {
 
-    Object.assign(instance, payload)
+    const instance = this.newInstance() as InstanceType<T>
+
+    instance.fill(payload)
 
     const data = instance.castToDB()
-    
-    await instance.runHook(`before-create` as ModelHookEventType, { model: instance, trx })
+
+    await instance.runHook('before-create', { model: instance, trx })
 
     const conn = trx ?? db
-    
     const [row] = await conn(this.getTable()).insert(data).returning('*')
 
-    await instance.runHook(`after-create` as ModelHookEventType, { model: instance, trx })
+    await instance.runHook('after-create', { model: instance, trx })
 
-    return instance.castFromDB(row) as InstanceType<T>
+    return instance.castFromDB(row)
   }
+
+
 
 
   // ==========================
   // ## update from fillable
   // ==========================
-  async update(payload: Record<string, any>) {
-    const ctor = this.constructor as typeof Model
-    const fields = ctor.fields
-
-    for (const [key, value] of Object.entries(payload)) {
-      if (!fields[key]) continue
-      if (!fields[key].fillable) continue
-      ;(this as any)[key] = value
-    }
-
-    return await this.save()
-  }
-
-
-  // ==========================
-  // ## Create from fillable
-  // ==========================
-  static async upsert<T extends typeof Model>(
+  static async update<T extends typeof Model>(
     this: T,
-    payload: Record<string, any>,
-    uniqueKeys: string[],
+    payload: ModelPayload<InstanceType<T>>,
+    uniqueKeys: (keyof InstanceType<T> & string)[],
     trx?: Knex.Transaction
   ): Promise<InstanceType<T>> {
 
     if (!uniqueKeys.length) {
-      throw new Error('upsert requires at least one unique key')
+      throw new Error('updateByUnique requires uniqueKeys')
     }
 
-    const instance = this.newInstance()
-    const fields = this.fields
+    const instance = this.newInstance() as InstanceType<T>
+    instance.fill(payload)
 
-    for (const [key, value] of Object.entries(payload)) {
-      if (!fields[key]) continue
-      if (!fields[key].fillable) continue
-      ;(instance as any)[key] = value
+    const data = instance.castToDB()
+    const where: Record<string, any> = {}
+
+    for (const key of uniqueKeys) {
+      if ((payload as any)[key] === undefined) {
+        throw new Error(`Missing unique key: ${key}`)
+      }
+      where[key] = (payload as any)[key]
     }
+
+    const conn = trx ?? db
+    const [row] = await conn(this.getTable()).where(where).update(data).returning('*')
+
+    if (!row) throw status(404, { message: 'Record not found' })
+
+    return instance.castFromDB(row)
+  }
+
+
+
+
+  // ==========================
+  // ## Update or insert from fillable
+  // ==========================
+  static async upsert<T extends typeof Model>(
+    this: T,
+    payload: ModelPayload<InstanceType<T>>,
+    uniqueKeys: (keyof InstanceType<T> & string)[],
+    trx?: Knex.Transaction
+  ): Promise<InstanceType<T>> {
+
+    const instance = this.newInstance() as InstanceType<T>
+
+    instance.fill(payload)
 
     const data = instance.castToDB()
     const conn = trx ?? db
-    const table = this.getTable()
 
-    const conflictCols = uniqueKeys
-
-    const updateCols = Object.keys(data).filter(k => !conflictCols.includes(k))
-
-    const [row] = await conn(table)
+    const [row] = await conn(this.getTable())
       .insert(data)
-      .onConflict(conflictCols)
-      .merge(updateCols.length ? updateCols : undefined)
+      .onConflict(uniqueKeys)
+      .merge()
       .returning('*')
 
-    return instance.castFromDB(row) as InstanceType<T>
+    return instance.castFromDB(row)
   }
+
 
 
 
@@ -565,6 +603,98 @@ export abstract class Model {
 
     return this
   }
+
+
+
+  // ==========================
+  // ## Save with relation
+  // ==========================
+  async pump<T extends this>(
+    this: T,
+    payload: ModelPayload<T>,
+    options: { trx?: Knex.Transaction } = {}
+  ): Promise<T> {
+
+    const isRoot = !options.trx
+    const trx = options.trx ?? await db.transaction()
+
+    try {
+      const ctor = this.constructor as typeof Model
+      const fields = ctor.fields
+      const relations = ctor.relations ?? {}
+
+      const flat: ModelPayload<T> = {}
+      const nested: Record<string, any> = {}
+
+      for (const key of Object.keys(payload) as Array<keyof DataShape<T>>) {
+        const value = payload[key]
+
+        if (fields[key as string]?.fillable) {
+          flat[key] = value
+        } else if (relations[key as string] && value !== null) {
+          nested[key as string] = value
+        }
+      }
+
+      this.fill(flat)
+      await this.useTransaction(trx).save()
+
+      // 3️⃣ Simpan relasi
+      for (const [name, value] of Object.entries(nested)) {
+        const relDef = relations[name]
+        if (!relDef) continue
+
+        const desc = relDef()
+        const Related = desc.model()
+
+        // ===== hasMany / belongsToMany =====
+        if (Array.isArray(value)) {
+          const existing = await Related.query(trx).where(desc.foreignKey, (this as any)[desc.localKey]).get()
+
+          const existingIds = existing.map((r: Model) => (r as any)[Related.primaryKey])
+          const incomingIds: any[] = []
+
+          for (const item of value) {
+            if ((item as any)[Related.primaryKey]) {
+              const child = await Related.query(trx).where(Related.primaryKey, (item as any)[Related.primaryKey]).first()
+
+              if (child) {
+                await child.pump(item as any, { trx })
+                incomingIds.push(child[Related.primaryKey])
+              }
+            } else {
+              const child = Related.newInstance()
+              ;(child as any)[desc.foreignKey] = (this as any)[desc.localKey]
+              await child.pump(item as any, { trx })
+              incomingIds.push(child[Related.primaryKey])
+            }
+          }
+
+          const toDelete = existingIds.filter((id: number) => !incomingIds.includes(id))
+          if (toDelete.length) {
+            await Related.query(trx).whereIn(Related.primaryKey, toDelete).delete()
+          }
+
+          continue
+        }
+
+        const child = Related.newInstance()
+        if (desc.type !== 'belongsTo') {
+          ;(child as any)[desc.foreignKey] = (this as any)[desc.localKey]
+        }
+
+        await child.pump(value as any, { trx })
+      }
+
+      if (isRoot) await trx.commit()
+      return this
+
+    } catch (err) {
+      if (isRoot) await trx.rollback()
+      throw err
+    }
+  }
+
 
 
   // ==========================
@@ -1210,7 +1340,9 @@ export function extendModelQuery(
   if (!(query as any).resolve) {
     ;(query as any).resolve = async function (input: any = {}) {
       const gq = input?.getQuery ? input.getQuery : input
-      const isOption = input?.headers?.["X-OPTIONS"] || gq?.isOption || false
+      const isOption = input?.headers?.["x-options"] || gq?.isOption || false
+      
+      console.log(input?.headers);
       
       this.
         expand?.(gq.expand).

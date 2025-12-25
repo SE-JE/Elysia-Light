@@ -19,17 +19,8 @@ export class UserController {
   // ## Display a listing of the resource.
   // ========================================>
   static async index(c: ControllerContext) {    
-    // const record = await User.query().search("sadsa");
-    const users = await User.query().resolve(c);
-    // const q = User.query();
+    const users = await User.query().resolve(c)
 
-    // console.log(q.toQuery()); // DEBUG SQL
-
-    // const records = await q; // EKSEKUSI
-    // return records;
-    // return record;
-    // c.responseSuccess(record)
-    // c.responseData(record)
     c.responseData(users.data, users.total)
   }
 
@@ -43,17 +34,18 @@ export class UserController {
         email  :  "required",
     })
 
-    // const trx = await db.beginTransaction()
+    const trx = await db.transaction()
+
     let record = new User();
     
     try {
-      // record = await new User().pump(c.body as Record<string, any>, { trx })            
+      record = await record.pump(c.body as Record<string, any>)            
     } catch (err) {
-      // await trx.rollback()
+      await trx.rollback()
       c.responseError(err as Error, "Create User")
     }
 
-    // await trx.commit()
+    await trx.commit()
 
     c.responseSaved(record)
   }
@@ -70,16 +62,16 @@ export class UserController {
         email  :  "required",
     })
     
-    // const trx = await db.transaction()
+    const trx = await db.transaction()
 
     try {
-        // record = await record.pump(c.body as Record<string, any>, { trx })
+        record = await record.pump(c.body as Record<string, any>, { trx })
     } catch (err) {
-        // await trx.rollback()
+        await trx.rollback()
         c.responseError(err as Error, "Create User")
     }
 
-    // await trx.commit()
+    await trx.commit()
     c.responseSaved(record)
   }
 

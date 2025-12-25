@@ -49,14 +49,12 @@ export class AuthController {
 
         await User.query().where("email", email).whereNull("email_verification_at").delete();
         
-        const model = new User().pumpFillable(c.body as Record<string, any>)
+        const model = new User().fill(c.body as Record<string, any>)
 
-        model.fill({
-            "password": await bcrypt.hash(password, 10)
-        })
+        model.password = await bcrypt.hash(password, 10)
 
         try {
-            await model.save({ trx })            
+            await model.save()            
         } catch (err) {
             await trx.rollback()
             c.responseError(err as Error, "Create User")
@@ -125,7 +123,7 @@ export class AuthController {
 
         const body = c.body as Record<string, any>;
 
-        model.dumpField(body)
+        model.fill(body)
 
         if (body.image && body.image instanceof File) {
             const imageSource = await c.uploadFile(body.image, 'users');
