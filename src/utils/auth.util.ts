@@ -1,6 +1,5 @@
 import crypto from 'crypto'
 import { db } from '@utils'
-import { User } from '@models'
 
 
 
@@ -75,7 +74,7 @@ export const Auth = {
   
     await db.table('user_access_tokens').where("id", tokenRecord.id).update({ last_used_at: new Date() })
   
-    const user = await User.query().findOrNotFound(tokenRecord.user_id)
+    const user = await (await db.table("users")).find(tokenRecord.user_id)
 
     return { user, token: tokenRecord, permissions: [] }
   },
