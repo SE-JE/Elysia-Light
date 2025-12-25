@@ -20,7 +20,7 @@ export const Auth = {
     const plain = crypto.randomBytes(TOKEN_PLAIN_LENGTH).toString('hex')
     const hash = crypto.createHash('sha256').update(plain).digest('hex')
   
-    const trx = await db.beginTransaction()
+    const trx = await db.transaction()
     
     await trx.table('user_access_tokens').insert({
       user_id     : userId,
@@ -89,7 +89,7 @@ export const Auth = {
     const token = Math.floor(100000 + Math.random() * 900000).toString()
     const hash = crypto.createHash('sha256').update(token).digest('hex')
   
-    const trx = await db.beginTransaction()
+    const trx = await db.transaction()
 
     await trx.table('user_mail_tokens').insert({
       user_id     : userId,

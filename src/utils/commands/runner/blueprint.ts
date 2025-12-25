@@ -549,7 +549,7 @@ async function askChoice(message: string, choices: string[]): Promise<string> {
       if (index >= 0 && index < choices.length) {
         resolve(choices[index]);
       } else {
-        logger.error("Pilihan tidak valid, default ke:", choices[0])
+        logger.error(`Pilihan tidak valid, default ke: ${choices[0]}`)
         resolve(choices[0]);
       }
     });

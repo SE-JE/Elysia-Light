@@ -1,22 +1,13 @@
-import { Migration } from 'sutando';
+import type { Knex } from "knex"
 
-export default class {{ className }} extends Migration 
-{
-  // =========================>
-  // ## Run the migration
-  // =========================>
-  async up(schema: any) {
-    await schema.createTable('{{ tableName }}', (table: any) => {
-      table.increments('id').primary()
+export async function up(knex: Knex): Promise<void> {
+  await knex.schema.createTable("{{ tableName }}", (table) => {
+    table.bigIncrements('id').primary()
 {{ schemas }}
-      table.timestamps(true, true)
-    });
-  }
+    table.timestamps(true, true)
+  })
+}
 
-  // =========================>
-  // ## Reverse the migrations.
-  // =========================>
-  async down(schema: any) {
-    await schema.dropTableIfExists('{{ tableName }}');
-  }
+export async function down(knex: Knex): Promise<void> {
+  await knex.schema.dropTableIfExists("{{ tableName }}")
 }

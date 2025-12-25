@@ -19,8 +19,8 @@ export class UserController {
   // ## Display a listing of the resource.
   // ========================================>
   static async index(c: ControllerContext) {    
-    const users = await User.query().resolve(c);
-  
+    const users = await User.query().resolve(c)
+
     c.responseData(users.data, users.total)
   }
 
@@ -34,11 +34,12 @@ export class UserController {
         email  :  "required",
     })
 
-    const trx = await db.beginTransaction()
-    let record = {};
+    const trx = await db.transaction()
+
+    let record = new User();
     
     try {
-      record = await new User().pump(c.body as Record<string, any>, { trx })            
+      record = await record.pump(c.body as Record<string, any>)            
     } catch (err) {
       await trx.rollback()
       c.responseError(err as Error, "Create User")
@@ -61,7 +62,7 @@ export class UserController {
         email  :  "required",
     })
     
-    const trx = await db.beginTransaction()
+    const trx = await db.transaction()
 
     try {
         record = await record.pump(c.body as Record<string, any>, { trx })
@@ -79,14 +80,14 @@ export class UserController {
   // ## Remove the specified resource.
   // ===============================================>
   static async destroy(c: ControllerContext) {
-    const model = await User.query().findOrNotFound(c.params.id)
+    let record = await User.query().findOrNotFound(c.params.id)
     
     try {
-        await model.delete()
+        record = await record.delete()
     } catch (err) {
         c.responseError(err as Error, "Delete User")
     }
 
-    c.responseSuccess(model.toJSON())
+    c.responseSuccess(record)
   }
 }

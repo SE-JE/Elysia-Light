@@ -75,7 +75,7 @@ export const Middleware = {
       
       set.headers['Access-Control-Allow-Origin']      = allowedOrigin
       set.headers['Access-Control-Allow-Methods']     = process.env.APP_CORS_METHODS || 'GET, POST, PUT, DELETE, OPTIONS'
-      set.headers['Access-Control-Allow-Headers']     = 'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+      set.headers['Access-Control-Allow-Headers']     = 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-OPTIONS'
       set.headers['Access-Control-Allow-Credentials'] = 'true'
 
       if (request.method === 'OPTIONS') {

@@ -17,9 +17,9 @@
     "dotenv": "^17.2.2",
     "elysia": "latest",
     "ioredis": "^5.8.0",
+    "knex": "^3.1.0",
     "nodemailer": "^7.0.9",
     "socket.io": "^4.8.1",
-    "sutando": "^1.7.2",
     "tsconfig-paths": "^4.2.0",
     "validator": "^13.15.15"
   },

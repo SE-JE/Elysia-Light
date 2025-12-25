@@ -11,10 +11,6 @@ export const routes = (app: Elysia) => app.group('/api', (route) => {
     route.post('/login', AuthController.login)
     route.post('/register', AuthController.register)
 
-    route.get('/example-queue', () => {
-        queue.add('example', {date: new Date()});
-    })
-    
     // route.use(Middleware.Auth)
     
     route.post('/verify', AuthController.verify)
