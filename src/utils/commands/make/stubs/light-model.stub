@@ -3,25 +3,28 @@ import { Model } from '@utils'
 
 export class {{ name }} extends Model {
     // =====================>
-    // ## Fillable
+    // ## Field
     // =====================>
-    fillable    =  [{{ fillable }}]
+    {{ fields }}
 
 
-    // ====================>
-    // ## Selectable
-    // ====================>
-    selectable  =  [{{ selectable }}]
-
-
-    // ====================>
-    // ## Searchable
-    // ====================>
-    searchable  =  [{{ searchable }}]
+    // =====================>
+    // ## Attribute
+    // =====================>
+    {{ attributes }}
 
 
     // =========================>
     // ## Relations
     // =========================>
     {{ relations }}
+
+
+    // =====================>
+    // ## Hook
+    // =====================>
+    constructor () {
+        super()
+        {{ hooks }}
+    }
 }
