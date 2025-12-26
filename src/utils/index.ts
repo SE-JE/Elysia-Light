@@ -1,4 +1,5 @@
 export * from "./auth.util";
+export * from "./activity.util";
 export * from "./commands/logger";
 export * from "./commands/runner/da-migration";
 export * from "./cache.util";
@@ -12,6 +13,7 @@ export * from "./middleware.util";
 export * from "./model.util";
 export * from "./permission.util";
 export * from "./route.util";
+export * from "./redis.util";
 export * from "./storage.util";
 export * from "./socket.util";
 export * from "./queue.util";

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { daClient, redis } from '@utils';
+import { daClient, queue, redis } from '@utils';
 
 
 
@@ -87,8 +87,6 @@ export const logger = {
     log("socketError", msg)
     payload && logError({...payload, service: payload.service || 'socket'})
   },
-
-  worker: LogWorker,
 };
 
 
@@ -100,16 +98,12 @@ type DriverName = "file" | "da"
 
 const ACCESS_LOG_DRIVER        =  process.env.ACCESS_LOG_DRIVER || "file"
 const ACCESS_LOG_LOG_DIR       =  process.env.ACCESS_LOG_DIR || "storage/logs/access"
-const ACCESS_LOG_QUEUE_PREFIX  =  process.env.ACCESS_LOG_QUEUE_PREFIX || "queue:access-log"
-const ACCESS_LOG_CONCURRENCY   =  process.env.ACCESS_LOG_CONCURRENCY|| 500
-const ACCESS_LOG_FLUSH         =  process.env.ACCESS_LOG_FLUSH || 1000
+const ACCESS_LOG_QUEUE         =  process.env.ACCESS_LOG_QUEUE || "access-log"
 
 
 const ERROR_LOG_DRIVER        = process.env.ERROR_LOG_DRIVER || "file"
 const ERROR_LOG_LOG_DIR       = process.env.ERROR_LOG_DIR || "storage/logs/error"
-const ERROR_LOG_QUEUE_PREFIX  = process.env.ERROR_LOG_QUEUE_PREFIX || "queue:error-log"
-const ERROR_LOG_CONCURRENCY   = process.env.ERROR_LOG_CONCURRENCY || 10
-const ERROR_LOG_FLUSH         = process.env.ERROR_LOG_FLUSH || 200
+const ERROR_LOG_QUEUE         = process.env.ERROR_LOG_QUEUE_PREFIX || "error-log"
 
 
 
@@ -130,7 +124,7 @@ const handlers: Record<DriverName, (log: AccessLog) => Promise<void>> = {
   },
   da: async (log) => {
     try {
-      await redis.rpush(ACCESS_LOG_QUEUE_PREFIX, JSON.stringify(log))
+      await queue.add(ACCESS_LOG_QUEUE, log)
     } catch {}
   }
 }
@@ -162,7 +156,7 @@ const errorHandlers: Record<DriverName, (log: ErrorLog) => Promise<void>> = {
   },
   da: async (log) => {
     try {
-      await redis.rpush(ERROR_LOG_QUEUE_PREFIX, JSON.stringify(log))
+      await queue.add(ERROR_LOG_QUEUE, log)
     } catch {}
   }
 }
@@ -172,78 +166,5 @@ const activeErrorDrivers: DriverName[] = ERROR_LOG_DRIVER.split(",").map(v => v.
 function logError(payload: ErrorLog) {
   for (const d of activeErrorDrivers) {
     errorHandlers[d](payload)
-  }
-}
-
-
-
-
-
-// =====================
-// ## Workers
-// =====================
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
-
-async function LogWorker() {
-  let accessBuffer: AccessLog[]  =  []
-  let errorBuffer: ErrorLog[]    =  []
-
-  let lastAccessFlush            =  Date.now()
-  let lastErrorFlush             =  Date.now()
-
-  logger.start(`Log queue workers is running!`)
-
-  while (true) {
-    // =====================
-    // ## Access log worker
-    // =====================
-    const accessRaw = await redis.lpop(ACCESS_LOG_QUEUE_PREFIX)
-    if (accessRaw) accessBuffer.push(JSON.parse(accessRaw));
-
-    const now = Date.now()
-
-    const flushAccess = accessBuffer.length >= Number(ACCESS_LOG_CONCURRENCY) || (accessBuffer.length > 0 && now - lastAccessFlush >= Number(ACCESS_LOG_FLUSH))
-
-    if (flushAccess) {
-      try {
-        await daClient.insert({
-          table   :  "access_logs",
-          values  :  accessBuffer,
-          format  :  "JSONEachRow"
-        })
-        accessBuffer     =  []
-        lastAccessFlush  =  now
-      } catch (e) {
-        logger.error(`access log insert failed ${e}`)
-      }
-    }
-
-    // =====================
-    // ## Error log worker
-    // =====================
-    const errorRaw = await redis.lpop(ERROR_LOG_QUEUE_PREFIX)
-    if (errorRaw) {
-      errorBuffer.push(JSON.parse(errorRaw))
-    }
-
-    const flushError = errorBuffer.length >= Number(ERROR_LOG_CONCURRENCY) || (errorBuffer.length > 0 && now - lastErrorFlush >= Number(ERROR_LOG_FLUSH))
-
-    if (flushError) {
-      try {
-        await daClient.insert({
-          table   :  "error_logs",
-          values  :  errorBuffer,
-          format  :  "JSONEachRow"
-        })
-        errorBuffer     =  []
-        lastErrorFlush  =  now
-      } catch (e) {
-        logger.error(`error log insert failed ${e}`)
-      }
-    }
-
-    if (!accessRaw && !errorRaw) {
-      await sleep(30)
-    }
   }
 }

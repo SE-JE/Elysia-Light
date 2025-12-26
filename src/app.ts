@@ -53,15 +53,6 @@ if (process.env.REDIS_HOST && process.env.REDIS_PORT) {
 
 
 // =====================================>
-// ## Init: logger
-// =====================================>
-if (process.env.ACCESS_LOG_DRIVER == "da" || process.env.ERROR_LOG_DRIVER == "da") {
-  logger.worker()
-}
-
-
-
-// =====================================>
 // ## Init: running server
 // =====================================>
 function getLocalIP() {

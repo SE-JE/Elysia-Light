@@ -1342,8 +1342,6 @@ export function extendModelQuery(
       const gq = input?.getQuery ? input.getQuery : input
       const isOption = input?.headers?.["x-options"] || gq?.isOption || false
       
-      console.log(input?.headers);
-      
       this.
         expand?.(gq.expand).
         search?.(gq.search, {

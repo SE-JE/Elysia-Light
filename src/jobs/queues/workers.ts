@@ -1,4 +1,7 @@
 import { logger, queue } from "@utils";
+import { activityLogQueueWorker } from "./activity-log.queue.worker";
+import { accessLogQueueWorker } from "./access-log.queue.worker";
+import { errorLogQueueWorker } from "./error-log.queue.worker";
 
 
 
@@ -25,6 +28,9 @@ queue.worker("example", async (payload, id) => {
     console.log(`Finish job ${id}`)
 });
 
+activityLogQueueWorker()
+accessLogQueueWorker()
+errorLogQueueWorker()
 
 
 logger.start(`Queue job workers is running!`)
