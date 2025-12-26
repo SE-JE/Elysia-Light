@@ -69,7 +69,7 @@ async function emitActivity(payload: {
     final    ?:  Record<string, any>,
   }
 }) {
-  const activityPayload = { ...payload, timestamp: new Date().toISOString() }
+  const activityPayload = { ...payload, at: new Date().toISOString() }
 
   if(ACTIVITY_DRIVER == "DA") {
     try {

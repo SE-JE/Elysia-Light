@@ -1,5 +1,5 @@
 import { Elysia, status } from 'elysia'
-import { Auth, logger } from '@utils'
+import { Auth, context, logger } from '@utils'
 
 
 const errors = {
@@ -179,6 +179,15 @@ export const Middleware = {
       logger.error(`error: ${em}`, { error: em, reference: path })
       return { message: em }
     }
+  }),
+
+  Context: (app: Elysia) => app.derive(async ({ store }) => {
+    const userId = (store as any)?.user?.id
+
+    return context.run({
+        userId,
+      },() => ({})
+    )
   }),
 }
 

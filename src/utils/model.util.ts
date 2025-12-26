@@ -12,6 +12,7 @@ export const RELATION_META     =  Symbol('relation-meta')
 export const SOFT_DELETE_META  =  Symbol('soft-delete')
 export const ATTRIBUTE_META    =  Symbol('attribute-meta')
 export const FORMATTER_META    =  Symbol('formatter-meta')
+export const SCOPE_META        =  Symbol('scope-meta')
 
 
 // ==========================
@@ -107,6 +108,15 @@ export type ModelHookContextType<T extends Model = Model>  =  {
 // ## Aggregate type
 // ==========================
 type AggregateType = 'count' | 'sum' | 'avg' | 'min' | 'max'
+
+
+// ==========================
+// ## Scope type
+// ==========================
+export type ScopeType = {
+  fn: Function
+  mode: 'global' | 'internal'
+}
 
 
 // ==========================
@@ -315,6 +325,14 @@ export abstract class Model {
   // ==========================
   static get formatters(): Record<string, Function> {
     return (this as any)[FORMATTER_META] ?? {}
+  }
+
+
+  // ==========================
+  // ## Scope
+  // ==========================
+  static get scopes(): Record<string, ScopeType> {
+    return (this as any)[SCOPE_META] ?? {}
   }
 
 
@@ -875,6 +893,7 @@ export function extendModelQuery(
   ;(query as any)._withTree = {}
   ;(query as any)._softDeleteScope = 'default'      //? default | with | only
   ;(query as any)._formatter = null
+  ;(query as any)._disabledScopes = new Set<string>()
 
 
   // =========================
@@ -1218,7 +1237,40 @@ export function extendModelQuery(
       return this
     }
   }
-  
+
+
+  // ==========================
+  // ## Scope query
+  // =========================
+  if (!(query as any).scope) {
+    ;(query as any).scope = function (name: string, ...args: any[]) {
+      const Model = this.$model
+      if (!Model) return this
+
+      const meta = Model.scopes?.[name]
+      if (!meta) {
+        throw new Error(`Scope "${name}" not found`)
+      }
+
+      if (meta.mode !== 'internal') {
+        throw new Error(`Scope "${name}" is global and cannot be called manually`)
+      }
+
+      meta.fn.apply(this, args)
+
+      return this
+    }
+  }
+
+  if (!(query as any).withoutScope) {
+    ;(query as any).withoutScope = function (...names: string[]) {
+      for (const name of names) {
+        this._disabledScopes.add(name)
+      }
+      return this
+    }
+  }
+
 
 
   // ==========================
@@ -1522,6 +1574,31 @@ export function Formatter() {
 
 
 
+// =================================>
+// ## Scope decorator model helpers
+// =================================>
+export function Scope(
+  mode: 'global' | 'internal' = 'internal'
+) {
+  return function (
+    target: any,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ) {
+    const ctor = target.constructor
+    if (!ctor[SCOPE_META]) ctor[SCOPE_META] = {}
+
+    ctor[SCOPE_META][propertyKey] = {
+      fn: descriptor.value,
+      mode,
+    } satisfies ScopeType
+  }
+}
+
+
+
+
+
 // ?? Private model helpers
 
 
@@ -1531,6 +1608,8 @@ export function Formatter() {
 function applyGlobalScopes(query: any) {
   const Model = query.$model
   if (!Model) return
+
+  applyScopes(query)
 
   if (Model.isSoftDelete?.()) {
     const col   =  Model.getDeletedAtColumn()
@@ -1542,24 +1621,6 @@ function applyGlobalScopes(query: any) {
   }
 }
 
-
-
-// =================================>
-// ## Parse with model helpers
-// =================================>
-function parseWith(list: string[]) {
-  const tree: any = {}
-
-  for (const path of list) {
-    let cur = tree
-    for (const part of path.split('.')) {
-      cur[part] ??= { __children: {} }
-      cur = cur[part].__children
-    }
-  }
-
-  return tree
-}
 
 
 // =================================>
@@ -1884,5 +1945,24 @@ function applyOrderByAggregates(query: any) {
     item.callback?.(sub)
 
     query.orderByRaw(`(${sub.toQuery()}) ${item.direction}`)
+  }
+}
+
+
+// =================================>
+// ## Add scope model helpers
+// =================================>
+function applyScopes(query: any) {
+  const Model = query.$model
+  if (!Model) return
+
+  const scopes = Model.scopes ?? {}
+  const disabled = query._disabledScopes ?? new Set<string>()
+
+  for (const [name, meta] of Object.entries(scopes) as [string, ScopeType][]) {
+    if (meta.mode !== 'global') continue
+    if (disabled.has(name)) continue
+
+    meta.fn.call(Model, query)
   }
 }

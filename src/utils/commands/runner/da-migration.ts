@@ -218,6 +218,10 @@ export class TableBuilder {
     this.columns.push(`${name} Int32`)
   }
 
+  json(name: string) {
+    this.columns.push(`${name} JSON`)
+  }
+
   dateTime(name: string) {
     this.columns.push(`${name} DateTime`)
   }
