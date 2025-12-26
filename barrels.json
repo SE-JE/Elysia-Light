@@ -1,5 +1,5 @@
 {
-  "directory": ["src/models", "src/controllers", "src/mails"],
+  "directory": ["src/models", "src/controllers", "src/outputs/mails", "src/outputs/notifications"],
   "delete": true,
   "exclude": ["index.ts"],
   "structure": "flat"

@@ -2,6 +2,7 @@ import { logger, queue } from "@utils";
 import { activityLogQueueWorker } from "./activity-log.queue.worker";
 import { accessLogQueueWorker } from "./access-log.queue.worker";
 import { errorLogQueueWorker } from "./error-log.queue.worker";
+import { notificationQueueWorker } from "./notification.queue.worker";
 
 
 
@@ -31,6 +32,7 @@ queue.worker("example", async (payload, id) => {
 activityLogQueueWorker()
 accessLogQueueWorker()
 errorLogQueueWorker()
+notificationQueueWorker()
 
 
 logger.start(`Queue job workers is running!`)

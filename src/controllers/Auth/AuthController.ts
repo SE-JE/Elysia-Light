@@ -2,7 +2,7 @@ import { ControllerContext } from "elysia"
 import bcrypt from 'bcrypt';
 import { User } from "@models"
 import { Auth, db } from '@utils';
-import { UserMailToken } from "@mails";
+import { UserMailToken } from "@/outputs/mails";
 
 export class AuthController {
     // =============================================>

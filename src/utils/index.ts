@@ -12,6 +12,7 @@ export * from "./da.util";
 export * from "./mail.util";
 export * from "./middleware.util";
 export * from "./model.util";
+export * from "./notification.util";
 export * from "./permission.util";
 export * from "./route.util";
 export * from "./redis.util";

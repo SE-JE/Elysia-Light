@@ -109,8 +109,8 @@
       "@controllers/*"  : ["src/controllers/*"],
       "@models"         : ["src/models/index.ts"],
       "@models/*"       : ["src/models/*"],
-      "@mails/*"        : ["src/mails/*"],
-      "@mails"          : ["src/mails/index.ts"],
+      "@mails/*"        : ["src/outputs/mails/*"],
+      "@mails"          : ["src/outputs/mails/index.ts"],
       "@routes/*"       : ["src/routes/*"],
       "@blueprints/*"   : ["src/blueprints/*"]
     }
