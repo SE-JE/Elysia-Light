@@ -7,9 +7,9 @@
     "light": "bun src/utils/commands/light.ts",
     "dev": "concurrently --raw \"bun run --watch src/app.ts\" \"bun barrels\" \"bun start:cron\" \"bun start:queue\" \"bun start:socket\"",
     "start": "bun run src/app.ts",
-    "start:cron": "bun run src/jobs/crons/workers.ts",
-    "start:queue": "bun run src/jobs/queues/workers.ts",
-    "start:socket": "bun run src/jobs/sockets/workers.ts"
+    "start:cron": "bun run src/jobs/crons/worker.cron.ts",
+    "start:queue": "bun run src/jobs/queues/worker.queue.ts",
+    "start:socket": "bun run src/jobs/sockets/worker.socket.ts"
   },
   "dependencies": {
     "@clickhouse/client": "^1.13.0",
