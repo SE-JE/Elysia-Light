@@ -7,6 +7,7 @@ import { conversion, db } from '@utils'
 // ==========================
 // ## Decorator Type
 // ==========================
+export const PRIMARY_KEY_META  =  Symbol('primary-key-meta')
 export const FIELD_META        =  Symbol('field-meta')
 export const RELATION_META     =  Symbol('relation-meta')
 export const SOFT_DELETE_META  =  Symbol('soft-delete')
@@ -265,8 +266,13 @@ export abstract class Model {
   static [FIELD_META]     ?:  Record<string, any>
 
   static getDefaultFields(): Record<string, FieldMeta> {
+    const pk = (this as any)[PRIMARY_KEY_META] ?? this.primaryKey ?? 'id'
+
     return {
-      id: { cast: 'number' },
+      [pk]: {
+        cast: 'number',
+        selectable: true,
+      },
       created_at: { cast: 'date' },
       updated_at: { cast: 'date' },
       deleted_at: { cast: 'date' },
@@ -299,6 +305,14 @@ export abstract class Model {
     if (this.table) return this.table
 
     return conversion.strPlural(conversion.strSnake(this.name))
+  }
+
+
+  // ==========================
+  // ## Primary key
+  // ==========================
+  static getPrimaryKey(): string {
+    return (this as any)[PRIMARY_KEY_META] ?? this.primaryKey ?? 'id'
   }
 
 
@@ -922,7 +936,7 @@ export function extendModelQuery(
 
       if (!row) throw status(404, { message: "Error: Record not found!" });
 
-      return row
+      return Model.hydrate([row])[0]
     }
   }
 
@@ -938,7 +952,24 @@ export function extendModelQuery(
 
       if (!row) throw status(404, { message: "Error: Record not found!" });
 
-      return row
+      return Model.hydrate([row])[0]
+    }
+  }
+
+
+  // ==========================
+  // ## find
+  // ==========================
+  if (!(query as any).find) {
+    ;(query as any).find = async function (id: any) {
+      applyGlobalScopes(this)
+
+      const pk   =  Model.primaryKey ?? 'id'
+      const row  =  await this.where(pk, id).first()
+
+      if (!row) return null;
+
+      return Model.hydrate([row])[0]
     }
   }
 
@@ -1451,6 +1482,27 @@ export function extendModelQuery(
 
 
 // ?? Public model helpers
+
+
+// =================================>
+// ## Primary key decorator model helpers
+// =================================>
+export function PrimaryKey() {
+  return function (target: any, key: string) {
+    const ctor = target.constructor
+
+    ctor.primaryKey = key
+
+    if (!ctor[FIELD_META]) ctor[FIELD_META] = {}
+
+    ctor[FIELD_META][key] = {
+      cast: 'number',
+      selectable: true,
+    }
+
+    ctor[PRIMARY_KEY_META] = key
+  }
+}
 
 
 // =================================>
