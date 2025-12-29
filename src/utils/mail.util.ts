@@ -57,7 +57,7 @@ export async function sendMail(options: {
 // ## Mail: Render mail template 
 // =============================>
 export function renderMailTemplate(template: string, options: Record<string, string>) {
-  const templateDir = join(import.meta.dir, "./../mails/templates");
+  const templateDir = join(import.meta.dir, "./../outputs/mails/templates");
 
   const contentPath = join(templateDir, `${template}.stub`);
   let content = readFileSync(contentPath, "utf-8");

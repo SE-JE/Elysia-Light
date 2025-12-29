@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia'
-import { api, queue } from '@utils'
+import { api, Middleware, queue } from '@utils'
 
 import { AuthController, BaseController, UserController } from '@controllers'
 
@@ -11,7 +11,7 @@ export const routes = (app: Elysia) => app.group('/api', (route) => {
     route.post('/login', AuthController.login)
     route.post('/register', AuthController.register)
 
-    // route.use(Middleware.Auth)
+    route.use(Middleware.Auth)
     
     route.post('/verify', AuthController.verify)
     route.get('/me', AuthController.me)

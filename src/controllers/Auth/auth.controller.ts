@@ -16,10 +16,8 @@ export class AuthController {
 
         const { email, password } = c.body as Record<string, any>
 
-        const result = await User.query().where("email", email).whereNotNull("email_verification_at").first();
-        if (!result) return c.responseErrorValidation({email: ["E-mail not found!"]})
-
-        const user = result.toJSON()
+        const user = await User.query().where("email", email).whereNotNull("email_verification_at").first();
+        if (!user) return c.responseErrorValidation({email: ["E-mail not found!"]})
 
         const checkPassword = await bcrypt.compare(password, user.password)
         if (!checkPassword) return c.responseErrorValidation({password: ["Wrong password!"]})
@@ -90,12 +88,13 @@ export class AuthController {
             })
         }
 
-        const verify = await Auth.verifyUserMailToken(c?.user?.id, token);
+        const verify = await Auth.verifyUserMailToken(c?.user?.id, String(token));
         if(!verify)  {
             c.responseErrorValidation({token: ["Invalid Token!"]})
         }
 
         await User.query().where("id", c?.user?.id).update({ email_verification_at: new Date() }) 
+        
 
         c.responseSuccess({ user: c.user }, "Success")
     }
@@ -125,9 +124,12 @@ export class AuthController {
 
         model.fill(body)
 
+        console.log(body.image);
+        
+
         if (body.image && body.image instanceof File) {
             const imageSource = await c.uploadFile(body.image, 'users');
-
+            
             model.fill({image: imageSource});
         }
         

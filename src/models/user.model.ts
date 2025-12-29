@@ -9,4 +9,7 @@ export class User extends Model {
 
     @Field(["fillable"])
     password!: string
+
+    @Field(["fillable", "selectable"])
+    image!: string
 }

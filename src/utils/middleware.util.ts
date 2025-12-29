@@ -197,20 +197,21 @@ export const Middleware = {
 // ## Middleware: Body parse helpers
 // =============================>
 function bodyParseKeyFormat(input: any): any {
-  if (typeof input !== "object" || input === null) return input;
+  if ( typeof input !== "object" || input === null || input instanceof File ) return input;
 
-  if (Array.isArray(input)) return input.map(bodyParseKeyFormat);
+  if (Array.isArray(input)) return input.map(bodyParseKeyFormat)
 
-  const result: any = {};
+  const result: any = {}
   for (const [key, value] of Object.entries(input)) {
     if (key.includes(".") || key.includes("[")) {
-      bodyParseNestedSet(result, key, bodyParseKeyFormat(value));
+      bodyParseNestedSet(result, key, bodyParseKeyFormat(value))
     } else {
-      result[key] = bodyParseKeyFormat(value);
+      result[key] = bodyParseKeyFormat(value)
     }
   }
-  return result;
+  return result
 }
+
 
 function bodyParseNestedSet(obj: any, path: string, value: any) {
   const parts = bodyParsePathFormat(path);

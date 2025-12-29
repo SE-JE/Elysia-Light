@@ -74,7 +74,7 @@ export const Auth = {
   
     await db.table('user_access_tokens').where("id", tokenRecord.id).update({ last_used_at: new Date() })
   
-    const user = await (await db.table("users")).find(tokenRecord.user_id)
+    const user = await db.table("users").where("id", tokenRecord.user_id).first();
 
     return { user, token: tokenRecord, permissions: [] }
   },
