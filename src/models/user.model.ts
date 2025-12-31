@@ -12,4 +12,7 @@ export class User extends Model {
 
     @Field(["fillable", "selectable"])
     image!: string
+
+    @Field(["fillable", "selectable", "searchable"])
+    email_verification_at!: Date
 }

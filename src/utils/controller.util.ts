@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import "elysia";
 import { Elysia, Context } from "elysia";
-import { validate, Rules, logger, KeyPermission } from "@utils";
+import { validate, Rules, logger, KeyPermission, db } from "@utils";
 
 
 
@@ -45,6 +45,15 @@ declare module "elysia" {
   }
 }
 
+
+type UploadOptions = {
+  disk         ?:  "public" | "private"
+  user_id      ?:  number              
+  permissions  ?:  Array<{
+    user_id    ?:  number
+    role_id    ?:  number
+  }>
+}
 
 
 export const Controller = (app: Elysia) => app.derive(({ query, body, status }) => ({
@@ -164,8 +173,10 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
   // ===================================>
   // ## Upload file
   // ===================================>
-  uploadFile: async (file: File, folder = "uploads"): Promise<string> => {
-    const dir = path.resolve("storage", "public", folder);
+  uploadFile: async (file: File, folder = "uploads", options?: { disk?: "public" | "private", owner_id?: number, permissions?: { user_id?: number; role_id?: number }[]}): Promise<string> => {
+    const disk = options?.disk ?? "public"
+
+    const dir = path.resolve("storage", disk, folder);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
     const fileName = `${Date.now().toString(36)}${Math.random().toString(36).substring(2, 18)}${path.extname(file.name).toLowerCase()}`;
@@ -175,7 +186,33 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
 
     fs.writeFileSync(filePath, buffer);
 
-    return `/${folder}/${fileName}`
+    const relativePath = `/${folder}/${fileName}`
+
+    if(options) {
+      const [storage] = await db("storages").insert({
+        user_id     :  options?.owner_id ?? null,
+        disk        :  disk,
+        path        :  relativePath,
+        filename    :  file.name,
+        filetype    :  file.type,
+        filesize    :  buffer.length,
+        created_at  :  new Date(),
+      }).returning(["id"])
+
+      if (options?.permissions?.length) {
+        const permissions = options.permissions.map(p => ({
+          storage_id  :  storage.id,
+          user_id     :  p.user_id ?? null,
+          role_id     :  p.role_id ?? null,
+          created_at  :  new Date(),
+        }))
+
+        await db("storage_permissions").insert(permissions)
+      }
+    }
+
+
+    return relativePath
   },
 
 
@@ -183,8 +220,18 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
   // ==================================>
   // ## Delete File
   // ==================================>
-  deleteFile: (filePath: string) => {
-    if (fs.existsSync(filePath)) { fs.unlinkSync(filePath); return true; }
+  deleteFile: async (filePath: string) => {
+    if (fs.existsSync(filePath)) { 
+      const record = await db("storages").where("path", filePath).first()
+      
+      if(record) {
+        await db("storages").where("id", record.id).delete()
+        await db("storage_permissions").where("storage_id", record.id).delete()
+      }
+
+      fs.unlinkSync(filePath); return true; 
+    }
+  
     return false;
   },
 }));

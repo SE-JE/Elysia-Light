@@ -10,6 +10,7 @@ import { routes } from '@routes/.'
 export const app  =  new Elysia()
   .use(Middleware.AccessLog)
   .use(Middleware.Cors)
+  .use(Middleware.Auth)
   .use(Middleware.BodyParse)
   .use(Controller)
   .use(storage)

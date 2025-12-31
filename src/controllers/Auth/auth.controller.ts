@@ -22,7 +22,7 @@ export class AuthController {
         const checkPassword = await bcrypt.compare(password, user.password)
         if (!checkPassword) return c.responseErrorValidation({password: ["Wrong password!"]})
         
-        const { token } = await Auth.createAccessToken(user.id)
+        const { token } = await Auth.createAccessToken(user.id, c.request)
 
         c.responseSuccess({ user, token }, "Success")
     }
@@ -60,7 +60,7 @@ export class AuthController {
 
         const user = model.toJSON()
 
-        const { token } = await Auth.createAccessToken(user.id)
+        const { token } = await Auth.createAccessToken(user.id, c.request, false)
 
         const { token: mailToken } = await Auth.createUserMailToken(user.id)
         

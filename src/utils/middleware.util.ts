@@ -33,20 +33,27 @@ export const Middleware = {
   Auth: (app: Elysia) => app.derive(async ({ request }) => {
       const authHeader = request.headers.get('authorization')
 
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        throw status(errors.unauthorized.status, { message: errors.unauthorized.message })
-      }
+      if (!authHeader || !authHeader.startsWith('Bearer ')) return { user: null, permissions: [], token: null }
 
       const bearer = authHeader.substring(7).trim()
-      const result = await Auth.verifyAccessToken(bearer)
+      const result = await Auth.verifyAccessToken(bearer, request)
 
-      if (!result || !result.user) {
-        throw status(errors.unauthorized.status, { message: errors.unauthorized.message })
-      }
+      if (!result) return { user: null, permissions: [], token: null };
 
       return {
         user: result.user,
         permissions: result.permissions,
+        token: result.token,
+      }
+  }),
+
+
+  // =============================>
+  // ## Middleware: Private hand;er
+  // =============================>
+  Private: (app: Elysia) => app.derive(async ({ user }: Record<string, any> | any) => {
+      if (!user) {
+        throw status(errors.unauthorized.status, { message: errors.unauthorized.message })
       }
   }),
 
