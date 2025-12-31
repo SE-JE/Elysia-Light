@@ -7,12 +7,7 @@ export class {{ name }} {
     // ## Display a listing of the resource.
     // ========================================>
     static async index(c: ControllerContext) {
-        const record = await {{ model }}.query(){{ with }}
-            .apply({{ model }}.search(c.getQuery.search, ['name']))
-            .apply({{ model }}.filter(JSON.parse(c.getQuery.filter)))
-            .apply({{ model }}.selectableColumns())
-            .orderBy(c.getQuery.sortBy, c.getQuery.sortDirection)
-            .paginate(1,c.getQuery.paginate)
+        const record = await {{ model }}.query().resolve(c)
         
         c.responseData(record.items().toJSON(), record.total())
     }
@@ -22,21 +17,15 @@ export class {{ name }} {
     // ## Store a newly created resource.
     // =============================================>
     static async store(c: ControllerContext) {
-        c.validation({{{ validations }}})
-
-        const trx = await db.beginTransaction()
-        
-        const record = new {{ model }}().dumpField(c.body as Record<string, any>)
+        c.validation<{{ model }}>({{{ validations }}})
 
         try {
-            await record.save({ trx })            
+            await {{ model }}.pump(c.body)            
         } catch (err) {
-            await trx.rollback()
             c.responseError(err as Error, "Create {{ model }}")
         }
 
-        await trx.commit()
-        c.responseSaved(record.toJSON())
+        c.responseSaved(record)
     }
 
 
@@ -44,23 +33,17 @@ export class {{ name }} {
     // ## Update the specified resource.
     // ============================================>
     static async update(c: ControllerContext) {
-        const record = await {{ model }}.query().apply({{ model }}.findOrNotFound(c.params.id))
+        const record = await {{ model }}.findOrNotFound(c.params.id)
 
-        c.validation({{{ validations }}})
-        
-        const trx = await db.beginTransaction()
-        
-        record.dumpField(c.body as Record<string, any>)
+        c.validation<{{ model }}>({{{ validations }}})
 
         try {
-            await record.save({ trx })
+            await record.pump(c.body)
         } catch (err) {
-            await trx.rollback()
-            c.responseError(err as Error, "Create {{ model }}")
+            c.responseError(err as Error, "Update {{ model }}")
         }
         
-        await trx.commit()
-        c.responseSaved(record.toJSON())
+        c.responseSaved(record)
     }
 
 
@@ -68,7 +51,7 @@ export class {{ name }} {
     // ## Remove the specified resource.
     // ===============================================>
     static async destroy(c: ControllerContext) {
-        const record = await {{ model }}.query().apply({{ model }}.findOrNotFound(c.params.id))
+        const record = await {{ model }}.findOrNotFound(c.params.id)
         
         try {
             await record.delete()
@@ -76,6 +59,6 @@ export class {{ name }} {
             c.responseError(err as Error, "Delete {{ model }}")
         }
 
-        c.responseSuccess(record.toJSON())
+        c.responseSuccess(record)
     }
 }
