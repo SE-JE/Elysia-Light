@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import "elysia";
 import { Elysia, Context } from "elysia";
-import { validate, Rules, logger, KeyPermission, db } from "@utils";
+import { validate, logger, KeyPermission, db, ValidationRules, ValidationRule } from "@utils";
 
 
 
@@ -31,7 +31,7 @@ declare module "elysia" {
       body                  : any 
     };
 
-    validation              :  (rules: any) => any;
+    validation              :  <T extends object>(rules: Partial<Record<keyof T, ValidationRule[] | string>>) => any;
     responseError           :  (...args: any[]) => any;
     responseErrorValidation :  (errors: Record<string, string[]>) => any;
     responseSaved           :  (data: any, message?: string) => any;
@@ -45,15 +45,9 @@ declare module "elysia" {
   }
 }
 
-
-type UploadOptions = {
-  disk         ?:  "public" | "private"
-  user_id      ?:  number              
-  permissions  ?:  Array<{
-    user_id    ?:  number
-    role_id    ?:  number
-  }>
-}
+export type ValidationRulesFor<T> = Partial<
+  Record<keyof T, ValidationRule[] | string>
+>
 
 
 export const Controller = (app: Elysia) => app.derive(({ query, body, status }) => ({
@@ -78,16 +72,22 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
   // ===================================>
   // ## Validation request body
   // ===================================>
-  validation: async (rules: Rules) => {
-    const result = await validate(body as Record<string, any>, rules);
-    
-    if (!result.valid) {
-      throw status(422, {
-        message: "Error: Unprocessable Entity!",
-        errors: result.errors,
-      })
-    }
-  },
+  validation: async <T extends object>(
+  rules: Partial<Record<keyof T, ValidationRules[] | string>>
+) => {
+  const result = await validate(
+    body as Record<string, any>,
+    rules as ValidationRules
+  )
+
+  if (!result.valid) {
+    throw status(422, {
+      message: "Error: Unprocessable Entity!",
+      errors: result.errors,
+    })
+  }
+},
+
 
 
 

@@ -1,12 +1,11 @@
 import validator from "validator"
 import { db } from "@utils"
 
-
-
 // ==========================>
 // ## Validation: Rules of validation
 // ==========================>
-type RuleName =
+
+export type ValidationRule =
   | "required"
   | "string"
   | "numeric"
@@ -14,39 +13,50 @@ type RuleName =
   | "email"
   | "url"
   | "date"
-  | "min"
-  | "max"
-  | "between"
-  | "in"
-  | "not_in"
   | "confirmed"
-  | "same"
-  | "different"
-  | "regex"
-  | "unique"
-  | "exists"
+  | `min:`
+  | `min:${number}`
+  | `max:`
+  | `max:${number}`
+  | `between:`
+  | `between:${number},${number}`
+  | `in:`
+  | `in:${string}`
+  | `not_in:`
+  | `not_in:${string}`
+  | `same:`
+  | `same:${string}`
+  | `different:`
+  | `different:${string}`
+  | `regex:`
+  | `regex:${string}`
+  | `unique:`
+  | `unique:${string},${string}`
+  | `exists:`
+  | `exists:${string},${string}`
 
-export type Rules = Record<string, string>
+export type ValidationRules = Record<string, ValidationRule[] | string>
 
 export interface ValidationResult {
-  valid   :  boolean
-  errors  :  Record<string, string[]>
+  valid  : boolean
+  errors : Record<string, string[]>
 }
-
-
 
 // ==================================>
 // ## Check validate field from rules
 // ==================================>
-export async function validate(data: Record<string, any>, rules: Rules): Promise<ValidationResult> {
+export async function validate(
+  data: Record<string, any>,
+  rules: ValidationRules
+): Promise<ValidationResult> {
   const errors: Record<string, string[]> = {}
 
   for (const field in rules) {
     const value = getNestedValue(data, field) ?? ""
-    const fieldRules = rules[field].split("|")
+    const fieldRules = normalizeRules(rules[field])
 
     for (const rule of fieldRules) {
-      let [name, param] = rule.split(":") as [RuleName, string | undefined]
+      const [name, param] = rule.split(":") as [string, string | undefined]
 
       switch (name) {
         // === BASIC ===
@@ -93,39 +103,46 @@ export async function validate(data: Record<string, any>, rules: Rules): Promise
           break
 
         // === LENGTH ===
-        case "min":
-          if (!validator.isLength(String(value), { min: parseInt(param!) })) {
-            addError(errors, field, `${field} minimal ${param} karakter`)
+        case "min": {
+          const min = parseInt(param!)
+          if (!validator.isLength(String(value), { min })) {
+            addError(errors, field, `${field} minimal ${min} karakter`)
           }
           break
+        }
 
-        case "max":
-          if (!validator.isLength(String(value), { max: parseInt(param!) })) {
-            addError(errors, field, `${field} maksimal ${param} karakter`)
+        case "max": {
+          const max = parseInt(param!)
+          if (!validator.isLength(String(value), { max })) {
+            addError(errors, field, `${field} maksimal ${max} karakter`)
           }
           break
+        }
 
-        case "between":
+        case "between": {
           const [minVal, maxVal] = param!.split(",").map(Number)
           if (!validator.isLength(String(value), { min: minVal, max: maxVal })) {
             addError(errors, field, `${field} harus antara ${minVal} - ${maxVal} karakter`)
           }
           break
+        }
 
         // === SET MEMBERSHIP ===
-        case "in":
+        case "in": {
           const allowed = param!.split(",")
           if (!allowed.includes(String(value))) {
             addError(errors, field, `${field} harus salah satu dari: ${allowed.join(", ")}`)
           }
           break
+        }
 
-        case "not_in":
+        case "not_in": {
           const notAllowed = param!.split(",")
           if (notAllowed.includes(String(value))) {
             addError(errors, field, `${field} tidak boleh salah satu dari: ${notAllowed.join(", ")}`)
           }
           break
+        }
 
         // === RELATIONAL ===
         case "confirmed":
@@ -159,8 +176,7 @@ export async function validate(data: Record<string, any>, rules: Rules): Promise
           break
 
         // === DATABASE VALIDATION ===
-        case "unique":
-        {
+        case "unique": {
           const [table, column, exceptId] = param!.split(",")
           const query = db.table(table).where(column, value)
           if (exceptId) query.whereNot("id", exceptId)
@@ -168,18 +184,17 @@ export async function validate(data: Record<string, any>, rules: Rules): Promise
           if (existing) {
             addError(errors, field, `${field} sudah digunakan`)
           }
+          break
         }
-        break
 
-        case "exists":
-        {
+        case "exists": {
           const [table, column] = param!.split(",")
           const existing = await db.table(table).where(column, value).first()
           if (!existing) {
             addError(errors, field, `${field} tidak ditemukan di ${table}`)
           }
+          break
         }
-        break
       }
     }
   }
@@ -189,8 +204,6 @@ export async function validate(data: Record<string, any>, rules: Rules): Promise
     errors
   }
 }
-
-
 
 // ==================================>
 // ## Validation helpers
@@ -209,6 +222,11 @@ function getNestedValue(obj: any, path: string): any {
     }
     return undefined
   }, obj)
+}
+
+function normalizeRules(rules: ValidationRule[] | string): ValidationRule[] {
+  if (Array.isArray(rules)) return rules
+  return rules.split("|") as ValidationRule[]
 }
 
 function addError(errors: Record<string, string[]>, field: string, message: string) {

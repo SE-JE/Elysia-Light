@@ -1,5 +1,5 @@
 import type { ControllerContext } from "elysia"
-import { db, permission } from '@utils'
+import { db, permission, ValidationRules } from '@utils'
 import { User } from "@models"
 
 export const UserPermission = permission.register({
@@ -29,9 +29,9 @@ export class UserController {
   // =============================================>
   static async store(c: ControllerContext) {
     
-    c.validation({
-        name   :  "required",
-        email  :  "required",
+    c.validation<User>({
+      name  : "required",
+      email : ["required", "email", "exists:"],
     })
 
     const trx = await db.transaction()
