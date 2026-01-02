@@ -41,7 +41,7 @@ declare module "elysia" {
     deleteFile              :  (filePath: string) => void;
     user                   ?:  any
     permissions            ?:  KeyPermission[],
-    payload                ?:  any
+    payload                 :  Record<string, any>
   }
 }
 

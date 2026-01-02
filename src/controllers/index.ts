@@ -3,11 +3,5 @@
  */
 
 export * from "./base.controller";
-export * from "./PermissionController";
-export * from "./UserAccessTokenController";
-export * from "./UserMailTokenController";
-export * from "./UserRoleController";
 export * from "./iam/auth.controller";
-export * from "./iam/role.controller";
 export * from "./iam/user.controller";
-export * from "./inventory-management/product.controller";

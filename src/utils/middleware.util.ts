@@ -1,6 +1,21 @@
 import { Elysia, status } from 'elysia'
 import { Auth, context, logger } from '@utils'
 
+declare module "elysia" {
+  interface Elysia {
+    api(
+      basePath: string,
+      controller: {
+        index    ?:  any
+        store    ?:  any
+        show     ?:  any
+        update   ?:  any
+        destroy  ?:  any
+      }
+    ): this
+  }
+}
+
 
 const errors = {
   unauthorized: {
@@ -149,8 +164,8 @@ export const Middleware = {
 
     store.rawBody = rawBody;
   }).derive(({ store }) => {
-    const body = bodyParseKeyFormat(store.rawBody || {});
-    return { body };
+    const payload = bodyParseKeyFormat(store.rawBody || {});
+    return { payload };
   }),
 
 

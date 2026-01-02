@@ -1,7 +1,12 @@
-import { Elysia } from 'elysia'
-import { api, Middleware, queue } from '@utils'
+import {
+Elysia } from 'elysia'
+import { api, Middleware } from '@utils'
 
-import { AuthController, BaseController, UserController } from '@controllers'
+import { 
+    AuthController, 
+    BaseController, 
+    UserController
+} from '@controllers'
 
 export const routes = (app: Elysia) => app.group('/api', (route) => {
     route.get('/', BaseController.index)
@@ -18,6 +23,5 @@ export const routes = (app: Elysia) => app.group('/api', (route) => {
     route.post('/me/update', AuthController.update)
 
     api(route, "/users", UserController);
-
     return route;
 })

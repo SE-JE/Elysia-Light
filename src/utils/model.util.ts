@@ -1538,42 +1538,80 @@ export function Field(defs: string[]) {
 // ## Relation decorator model helpers
 // =================================>
 export function HasMany(
-  model       :  () => typeof Model,
-  foreignKey  :  string,
-  localKey    :  string               =  'id',
-  callback?   : (q: any) => void
+  model     :  () => typeof Model,
+  options  ?:  { 
+    foreignKey  ?:  string
+    localKey    ?:  string
+    callback    ?:  (q: any) => void }
 ) {
-  return (target: any, key: string) => pushRelation(target, key, { type: 'hasMany', model, foreignKey, localKey, callback })
+  return (target: any, key: string) => {
+    const parent      =  target.constructor
+    const parentKey   =  options?.localKey ?? 'id'
+    const foreignKey  =  options?.foreignKey ?? `${conversion.strSnake(parent.name)}_id`
+
+    pushRelation(target, key, { type: 'hasMany', model, foreignKey, localKey: parentKey, callback: options?.callback })
+  }
 }
+
 
 export function HasOne(
-  model      : () => typeof Model,
-  foreignKey : string,
-  localKey   : string = 'id',
-  callback?   : (q: any) => void
+  model     :  () => typeof Model,
+  options  ?:  {
+    foreignKey  ?:  string
+    localKey    ?:  string
+    callback    ?:  (q: any) => void
+  }
 ) {
-  return (target: any, key: string) => pushRelation(target, key, { type: 'hasOne', model, foreignKey, localKey, callback })
+  return (target: any, key: string) => {
+    const parent      =  target.constructor
+    const parentKey   =  options?.localKey ?? 'id'
+    const foreignKey  =  options?.foreignKey ?? `${conversion.strSnake(parent.name)}_id`
+
+    pushRelation(target, key, { type: 'hasOne', model, foreignKey, localKey: parentKey, callback: options?.callback })
+  }
 }
+
 
 export function BelongsTo(
-  model       :  () => typeof Model,
-  foreignKey  :  string,
-  ownerKey    :  string               =  'id',
-  callback?   : (q: any) => void
+  model     :  () => typeof Model,
+  options  ?:  {
+    foreignKey  ?:  string
+    ownerKey    ?:  string
+    callback    ?:  (q: any) => void
+  }
 ) {
-  return (target: any, key: string) => pushRelation(target, key, { type: 'belongsTo', model, foreignKey, localKey: ownerKey, callback })
+  return (target: any, key: string) => {
+    const foreignKey  =  options?.foreignKey ?? `${conversion.strSnake(key)}_id`
+    const ownerKey    =  options?.ownerKey ?? 'id'
+
+    pushRelation(target, key, { type: 'belongsTo', model, foreignKey, localKey: ownerKey, callback: options?.callback })
+  }
 }
 
+
 export function BelongsToMany(
-  model          : () => typeof Model,
-  pivotTable     : string,
-  pivotLocal     : string,
-  pivotForeign   : string,
-  localKey       : string = 'id',
-  callback?   : (q: any) => void
+  model     :  () => typeof Model,
+  options  ?:  {
+    pivotTable    ?:  string
+    pivotLocal    ?:  string
+    pivotForeign  ?:  string
+    localKey      ?:  string
+    callback      ?:  (q: any) => void
+  }
 ) {
-  return (target: any, key: string) => pushRelation(target, key, { type: 'belongsToMany', model, localKey, foreignKey: localKey, pivotTable, pivotLocal, pivotForeign, callback })
+  return (target: any, key: string) => {
+    const parent        =  target.constructor
+    const parentName    =  conversion.strSnake(parent.name)
+    const relatedName   =  conversion.strSnake(model().name)
+    const pivotTable    =  options?.pivotTable ?? conversion.strPlural(`${parentName}_${relatedName}`)
+    const localKey      =  options?.localKey ?? 'id'
+    const pivotLocal    =  options?.pivotLocal ?? `${parentName}_id`
+    const pivotForeign  =  options?.pivotForeign ?? `${relatedName}_id`
+
+    pushRelation(target, key, { type: 'belongsToMany', model, localKey, foreignKey: localKey, pivotTable, pivotLocal, pivotForeign, callback: options?.callback })
+  }
 }
+
 
 
 // =================================>

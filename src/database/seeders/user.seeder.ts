@@ -1,16 +1,12 @@
-import bcrypt from "bcrypt";
 import { User } from "@models";
 
 export default async function UserSeeder() {
     // =========================>
     // ## Seed the application's database
     // =========================>
-    const password: string  = await bcrypt.hash("password", 10)
     
-    await User.create({
-        name: "Admin",
-        email: "admin@example.com",
-        email_verification_at: new Date(),
-        password: password
-    });
+    await User.insert([
+        {"name": "Admin", "email": "admin@mail.com", "password": "$2b$10$tPX5QhnM.vUEDmDpht6O4OarVyTh43NTxhkzFrNxfRijJ3uhSHcli", "image": null, "email_verification_at": "0001-01-01 01:01:01.000+00"},
+      {"name": "User", "email": "user@mail.com", "password": "$2b$10$tPX5QhnM.vUEDmDpht6O4OarVyTh43NTxhkzFrNxfRijJ3uhSHcli", "image": null, "email_verification_at": "0001-01-01 01:01:01.000+00"}
+    ]);
 }

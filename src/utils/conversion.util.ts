@@ -4,34 +4,19 @@ export const conversion = {
   // ## Conversion: String formatter 
   // =============================>
   strSnake(value: string, delimiter: string = "_"): string {
-  return value
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/[-\s]+/g, delimiter)
-    .toLowerCase()
-    .replace(new RegExp(`^${delimiter}+|${delimiter}+$`, "g"), "")
-    .replace(new RegExp(`${delimiter}{2,}`, "g"), delimiter)
-},
+    return toWords(value).join(delimiter)
+  },
 
   strSlug(value: string, delimiter: string = "-"): string {
-    return value
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, delimiter)
-      .replace(new RegExp(`${delimiter}+$`), "")
-      .replace(new RegExp(`^${delimiter}+`), "");
+    return toWords(value).join(delimiter);
   },
 
   strCamel(value: string): string {
-    return value
-      .replace(/[-_](.)/g, (_, group1) => group1.toUpperCase())
-      .replace(/^(.)/, (match) => match.toLowerCase());
+    return toWords(value).map((w, i) => i === 0 ? w : w[0].toUpperCase() + w.slice(1)).join("");
   },
 
-  strPascal(str: string): string {
-    return str
-      .replace(/[_\- ]+/g, " ")     
-      .split(" ")     
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join("");
+  strPascal(value: string): string {
+    return toWords(value).map(w => w[0].toUpperCase() + w.slice(1)).join("");
   },
 
   strPlural(value: string): string {
@@ -40,10 +25,7 @@ export const conversion = {
 
     const [, prefix, word] = match
 
-    if (
-      word.endsWith("y") &&
-      !/[aeiou]y$/i.test(word)
-    ) {
+    if (word.endsWith("y") && !/[aeiou]y$/i.test(word)) {
       return prefix + word.slice(0, -1) + "ies"
     }
 
@@ -52,7 +34,6 @@ export const conversion = {
     return value
   },
 
-
   strSingular(value: string): string {
     return value
       .replace(/[-_]/g, " ")
@@ -60,3 +41,15 @@ export const conversion = {
       .replace(/\s+/g, "");
   },
 };
+
+
+
+function toWords(value: string): string[] {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_\-\s]+/g, " ")
+    .trim()
+    .toLowerCase()
+    .split(" ")
+    .filter(Boolean)
+}
