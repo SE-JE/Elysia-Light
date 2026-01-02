@@ -1,16 +1,16 @@
 import type { ControllerContext } from "elysia"
 import { db } from '@utils'
-import { {{ model }} } from '@models'
+import { UserRole } from '@models'
 
-export class {{ name }} {
+export class UserRoleController {
     // ========================================>
     // ## Display a listing of the resource.
     // ========================================>
     static async index(c: ControllerContext) {
-        const record = await {{ model }}.query(){{ with }}
-            .apply({{ model }}.search(c.getQuery.search, ['name']))
-            .apply({{ model }}.filter(JSON.parse(c.getQuery.filter)))
-            .apply({{ model }}.selectableColumns())
+        const record = await UserRole.query().with(['role', 'user'])
+            .apply(UserRole.search(c.getQuery.search, ['name']))
+            .apply(UserRole.filter(JSON.parse(c.getQuery.filter)))
+            .apply(UserRole.selectableColumns())
             .orderBy(c.getQuery.sortBy, c.getQuery.sortDirection)
             .paginate(1,c.getQuery.paginate)
         
@@ -22,17 +22,20 @@ export class {{ name }} {
     // ## Store a newly created resource.
     // =============================================>
     static async store(c: ControllerContext) {
-        c.validation<{{ model }}>({{{ validations }}})
+        c.validation<UserRole>({{
+  "user_id": ["required","number"],
+  "role_id": ["required","number"]
+}})
 
         const trx = await db.beginTransaction()
         
-        const record = new {{ model }}().dumpField(c.body as Record<string, any>)
+        const record = new UserRole().dumpField(c.body as Record<string, any>)
 
         try {
             await record.save({ trx })            
         } catch (err) {
             await trx.rollback()
-            c.responseError(err as Error, "Create {{ model }}")
+            c.responseError(err as Error, "Create UserRole")
         }
 
         await trx.commit()
@@ -44,9 +47,12 @@ export class {{ name }} {
     // ## Update the specified resource.
     // ============================================>
     static async update(c: ControllerContext) {
-        const record = await {{ model }}.query().apply({{ model }}.findOrNotFound(c.params.id))
+        const record = await UserRole.query().apply(UserRole.findOrNotFound(c.params.id))
 
-        c.validation<{{ model }}>({{{ validations }}})
+        c.validation<UserRole>({{
+  "user_id": ["required","number"],
+  "role_id": ["required","number"]
+}})
         
         const trx = await db.beginTransaction()
         
@@ -56,7 +62,7 @@ export class {{ name }} {
             await record.save({ trx })
         } catch (err) {
             await trx.rollback()
-            c.responseError(err as Error, "Create {{ model }}")
+            c.responseError(err as Error, "Create UserRole")
         }
         
         await trx.commit()
@@ -68,12 +74,12 @@ export class {{ name }} {
     // ## Remove the specified resource.
     // ===============================================>
     static async destroy(c: ControllerContext) {
-        const record = await {{ model }}.query().apply({{ model }}.findOrNotFound(c.params.id))
+        const record = await UserRole.query().apply(UserRole.findOrNotFound(c.params.id))
         
         try {
             await record.delete()
         } catch (err) {
-            c.responseError(err as Error, "Delete {{ model }}")
+            c.responseError(err as Error, "Delete UserRole")
         }
 
         c.responseSuccess(record.toJSON())

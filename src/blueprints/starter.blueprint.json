@@ -1,0 +1,82 @@
+[
+    {
+        "model"   :  "User",
+        "schema"  :  {
+            "name"                   :  "type:string,200 required min:1 max:200 fillable searchable selectable",
+            "email"                  :  "type:string,100 unique index required min:5 max:100 fillable searchable selectable",
+            "password"               :  "type:string,200 required min:8 max:50 fillable hidden",
+            "image"                  :  "type:string,100 required fillable selectable file",
+            "email_verification_at"  :  "type:timestamp"
+        },
+        "relations": {
+            "roles": "[]:Role expandable fillable",
+            "permission": "[1]Permission"
+        },
+        "controllers"  :  ["iam/user.controller"],
+        "seeders"      :  [
+            ["Admin", "admin@mail.com", "$2b$10$tPX5QhnM.vUEDmDpht6O4OarVyTh43NTxhkzFrNxfRijJ3uhSHcli", null, "0001-01-01 01:01:01.000+00"], 
+            ["User", "user@mail.com", "$2b$10$tPX5QhnM.vUEDmDpht6O4OarVyTh43NTxhkzFrNxfRijJ3uhSHcli", null, "0001-01-01 01:01:01.000+00"]
+        ],
+
+        "pages": {
+            "iam/user": {
+                "name"      :  "column:sortable form:text|required|min:1|max:200|6",
+                "email"     :  "column:sortable form:text|required|email|min:5|max:100|6",
+                "password"  :  "form:input-password|required,create|min:8|max:50",
+                "image"     :  "form:image|6"
+            }
+        } 
+    },
+    {
+        "model"   :  "Role",
+        "schema"  :  {
+            "name"  :  "type:string,5 index required min:1 max:25 fillable searchable selectable"
+        },
+        "controllers"  :  ["iam/role.controller"],
+        "seeders"      :  [["Admin"], ["User"]],
+
+        "pages": ["iam/role"] 
+    },
+    {
+        "model"   :  "UserRole",
+        "schema"  :  {
+            "user_id"  :  "type:bigInteger unsigned index required fillable selectable",
+            "role_id"  :  "type:bigInteger unsigned index required fillable selectable"
+        },
+        "relations": {
+            "role"  :  "Role",
+            "user"  :  "User"
+        },
+        "seeders"      :  [[1, 1], [2, 2]]
+    },
+    {
+        "model"   :  "Permission",
+        "schema"  :  {
+            "user_id"       :  "type:bigInteger unsigned index fillable selectable",
+            "role_id"       :  "type:bigInteger unsigned index fillable selectable",
+            "permissions"   :  "type:json nullable fillable selectable"
+        }
+    },
+    {
+        "model"   :  "UserAccessToken",
+        "schema"  :  {
+            "user_id"       :  "type:bigInteger unsigned index fillable selectable",
+            "agent"         :  "type:string,100 nullable index fillable selectable",
+            "token"         :  "type:string,200 fillable selectable hidden",
+            "permissions"   :  "type:json nullable fillable selectable",
+            "last_used_ip"  :  "type:string,100 nullable fillable selectable",
+            "last_used_at"  :  "type:timestamp nullable fillable selectable",
+            "expired_at"    :  "type:timestamp nullable fillable selectable"
+        }
+    },
+    {
+        "model"   :  "UserMailToken",
+        "schema"  :  {
+            "user_id"     :  "type:bigInteger unsigned index fillable selectable",
+            "type"        :  "type:string,10 fillable selectable hidden",
+            "token"       :  "type:string,200 fillable selectable hidden",
+            "used_at"     :  "type:timestamp fillable selectable",
+            "expired_at"  :  "type:timestamp fillable selectable"
+        }
+    }
+]

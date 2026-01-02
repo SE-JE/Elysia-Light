@@ -3,8 +3,6 @@ import path from "path";
 import readline from "readline";
 import { Command } from "commander";
 import { conversion, logger } from "@utils";
-import { StarterBlueprint } from "@blueprints/StaterBlueprint";
-import { BaseBlueprint } from "@blueprints/index";
 import { migrationTimestampFormat } from "../make/basic-migration";
 
 
@@ -37,72 +35,164 @@ function extractSchema(schema: Record<string, string>) {
 // ## Command: blueprint model generation
 // ============================>
 export async function modelGeneration(
-  model      :  string,
-  schema     :  Record<string, string> = {},
-  relations  :  Record<string, string> = {}
-) : Promise<boolean> {
-  const name = model;
-  const basePath = path.join(process.cwd(), "src", "models");
-  const filePath = path.join(basePath, `${name}.ts`);
+  model: string,
+  schema: Record<string, string> = {},
+  relations: Record<string, string> = {}
+): Promise<boolean> {
 
+  const basePath = path.join(process.cwd(), "src", "models")
+  const filePath = path.join(basePath, `${model}.ts`)
+
+  // sementara: skip jika ada
   if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-  }
-
-  const fillable: string[]    =  [];
-  const searchable: string[]  =  [];
-  const selectable: string[]  =  ["id"];
-
-  for (const [column, definition] of Object.entries(schema)) {
-    if (definition.includes("fillable")) fillable.push(column);
-    if (definition.includes("searchable")) searchable.push(column);
-    if (definition.includes("selectable")) selectable.push(column);
-  }
-
-  const modelRelations: string[]  =  [];
-  let importRelations: string = "";
-
-  for (const [relationName, relationType] of Object.entries(relations)) {
-    const relation  =  relationType.split(",");
-    const fk        =  relation[1] ? `, "${relation[1]}"` : "";
-    const ok        =  relation[2] ? `, "${relation[2]}"` : "";
-
-    if (relationType.startsWith("[]")) {
-      const relatedModel = relation[0].substring(2);
-      const method = `
-  relation${conversion.strPascal(conversion.strPlural(relationName))}() {
-    return this.hasMany(${relatedModel}${fk}${ok});
-  }`;
-      modelRelations.push(method);
-    } else {
-      const relatedModel = relation[0];
-      const method = `
-  relation${conversion.strPascal(relationName)}() {
-    return this.belongsTo(${relatedModel}${fk}${ok});
-  }`;
-      modelRelations.push(method);
-
-      importRelations += `import ${relatedModel} from '@/models/${relatedModel}';\n`
-    }
+    logger.warning(`Skip model: ${model}`)
+    return true
   }
 
   if (!fs.existsSync(basePath)) {
-    fs.mkdirSync(basePath, { recursive: true });
+    fs.mkdirSync(basePath, { recursive: true })
   }
 
-  let content  =  fs.readFileSync('./src/utils/commands/make/stubs/light-model.stub', 'utf-8');;
+  // =========================
+  // Fields
+  // =========================
+  const fields: string[] = []
 
-  content  =  content.replace(/{{\s*name\s*}}/g, name || "")
-  content  =  content.replace(/{{\s*fillable\s*}}/g, renderArray(fillable) || "")
-  content  =  content.replace(/{{\s*searchable\s*}}/g, renderArray(searchable) || "")
-  content  =  content.replace(/{{\s*selectable\s*}}/g, renderArray(selectable) || "")
-  content  =  content.replace(/{{\s*relations\s*}}/g, modelRelations.join("\n") || "")
-  content  =  content.replace(/{{\s*import\s*}}/g, importRelations || "")
+  for (const [name, def] of Object.entries(schema)) {
+    const flags: string[] = []
 
-  fs.writeFileSync(filePath, content, "utf-8");
+    if (def.includes("fillable")) flags.push("fillable")
+    if (def.includes("searchable")) flags.push("searchable")
+    if (def.includes("selectable")) flags.push("selectable")
+    if (def.includes("hidden")) flags.push("hidden")
 
-  return true;
+    const decorator = flags.length
+      ? `@Field(${JSON.stringify(flags)})`
+      : ""
+
+    fields.push(`
+    ${decorator}
+    ${name}!: any
+    `.trim())
+  }
+
+  // =========================
+  // Relations
+  // =========================
+  const relationFields: string[] = []
+  let importRelations = ""
+  let importDecorators = new Set<string>()
+
+  for (const [name, def] of Object.entries(relations)) {
+    let type = "BelongsTo"
+    let target = def
+      .replace(/\[\]|\[1\]|:/g, "")
+      .split(" ")[0]
+
+    if (def.startsWith("[]:")) type = "BelongsToMany"
+    else if (def.startsWith("[]")) type = "HasMany"
+    else if (def.startsWith("[1]")) type = "HasOne"
+
+    importDecorators.add(type)
+    importRelations += `import ${target} from '@/models/${target}'\n`
+
+    // default key assumption (sementara)
+    const localKey = `${conversion.strSnake(name)}_id`
+    const foreignKey = "id"
+
+    const isMany = type === "HasMany" || type === "BelongsToMany"
+
+    relationFields.push(`
+      @${type}(() => ${target}, "${localKey}", "${foreignKey}")
+      ${name}!: ${isMany ? `${target}[]` : target}
+    `.trim())
+  }
+
+
+  let stub = fs.readFileSync(
+    path.join(process.cwd(), "src/utils/commands/make/stubs/light-model.stub"),
+    "utf-8"
+  )
+
+  stub = stub
+    .replace(/{{\s*name\s*}}/g, model)
+    .replace(/{{\s*fields\s*}}/g, fields.join("\n\n"))
+    .replace(/{{\s*relations\s*}}/g, relationFields.join("\n\n"))
+    .replace(/{{\s*attributes\s*}}/g, "")
+    .replace(/{{\s*hooks\s*}}/g, "")
+    .replace(/{{\s*import\s*}}/g, importRelations)
+
+  fs.writeFileSync(filePath, stub, "utf-8")
+  return true
 }
+
+// export async function modelGeneration(
+//   model      :  string,
+//   schema     :  Record<string, string> = {},
+//   relations  :  Record<string, string> = {}
+// ) : Promise<boolean> {
+//   const name = model;
+//   const basePath = path.join(process.cwd(), "src", "models");
+//   const filePath = path.join(basePath, `${name}.ts`);
+
+//   if (fs.existsSync(filePath)) {
+//     fs.unlinkSync(filePath);
+//   }
+
+//   const fillable: string[]    =  [];
+//   const searchable: string[]  =  [];
+//   const selectable: string[]  =  ["id"];
+
+//   for (const [column, definition] of Object.entries(schema)) {
+//     if (definition.includes("fillable")) fillable.push(column);
+//     if (definition.includes("searchable")) searchable.push(column);
+//     if (definition.includes("selectable")) selectable.push(column);
+//   }
+
+//   const modelRelations: string[]  =  [];
+//   let importRelations: string = "";
+
+//   for (const [relationName, relationType] of Object.entries(relations)) {
+//     const relation  =  relationType.split(",");
+//     const fk        =  relation[1] ? `, "${relation[1]}"` : "";
+//     const ok        =  relation[2] ? `, "${relation[2]}"` : "";
+
+//     if (relationType.startsWith("[]")) {
+//       const relatedModel = relation[0].substring(2);
+//       const method = `
+//   relation${conversion.strPascal(conversion.strPlural(relationName))}() {
+//     return this.hasMany(${relatedModel}${fk}${ok});
+//   }`;
+//       modelRelations.push(method);
+//     } else {
+//       const relatedModel = relation[0];
+//       const method = `
+//   relation${conversion.strPascal(relationName)}() {
+//     return this.belongsTo(${relatedModel}${fk}${ok});
+//   }`;
+//       modelRelations.push(method);
+
+//       importRelations += `import ${relatedModel} from '@/models/${relatedModel}';\n`
+//     }
+//   }
+
+//   if (!fs.existsSync(basePath)) {
+//     fs.mkdirSync(basePath, { recursive: true });
+//   }
+
+//   let content  =  fs.readFileSync('./src/utils/commands/make/stubs/light-model.stub', 'utf-8');;
+
+//   content  =  content.replace(/{{\s*name\s*}}/g, name || "")
+//   content  =  content.replace(/{{\s*fillable\s*}}/g, renderArray(fillable) || "")
+//   content  =  content.replace(/{{\s*searchable\s*}}/g, renderArray(searchable) || "")
+//   content  =  content.replace(/{{\s*selectable\s*}}/g, renderArray(selectable) || "")
+//   content  =  content.replace(/{{\s*relations\s*}}/g, modelRelations.join("\n") || "")
+//   content  =  content.replace(/{{\s*import\s*}}/g, importRelations || "")
+
+//   fs.writeFileSync(filePath, content, "utf-8");
+
+//   return true;
+// }
 
 
 
@@ -200,6 +290,77 @@ export async function migrationGeneration(
 // ================================>
 // ## Command: Blueprint controller generation
 // ================================>
+function generateFieldValidations(
+  model: string,
+  schema: Record<string, string>
+) {
+  const rules: Record<string, string[]> = {}
+  const table = conversion.strSnake(conversion.strPlural(model))
+
+  for (const [field, def] of Object.entries(schema)) {
+    const r: string[] = []
+
+    r.push(def.includes("required") ? "required" : "nullable")
+
+    if (def.includes("type:string")) {
+      r.push("string")
+
+      const len = def.match(/type:string,(\d+)/)
+      if (len) r.push(`max:${len[1]}`)
+    }
+
+    if (def.includes("type:integer") || def.includes("type:bigInteger")) {
+      r.push("number")
+    }
+
+    const min = def.match(/min:(\d+)/)
+    if (min) r.push(`min:${min[1]}`)
+
+    const max = def.match(/max:(\d+)/)
+    if (max) r.push(`max:${max[1]}`)
+
+    if (def.includes("unique")) {
+      r.push(`unique:${table},${field}`)
+    }
+
+    rules[field] = r
+  }
+
+  return rules
+}
+
+function generateRelationValidations(
+  relations: Record<string, string>
+) {
+  const rules: Record<string, string[]> = {}
+
+  for (const [name, def] of Object.entries(relations)) {
+    if (!def.includes("fillable")) continue
+
+    const isMany = def.startsWith("[]") || def.startsWith("[]:")
+    const target = def.replace(/[\[\]:]/g, "").split(" ")[0]
+    const table  = conversion.strSnake(conversion.strPlural(target))
+
+    if (isMany) {
+      rules[name] = ["array"]
+      rules[`${name}.*`] = ["number", `exists:${table},id`]
+    } else {
+      rules[name] = ["nullable", "number", `exists:${table},id`]
+    }
+  }
+
+  return rules
+}
+
+
+function renderValidationObject(rules: Record<string, string[]>) {
+  return `{
+${Object.entries(rules)
+  .map(([k, v]) => `  "${k}": ${JSON.stringify(v)}`)
+  .join(",\n")}
+}`
+}
+
 export async function controllerGeneration(
   model        :  string,
   schema       :  Record<string, string>  =  {},
@@ -220,71 +381,74 @@ export async function controllerGeneration(
 
   const controllerPath = path.join(basePath, `${initialName}.ts`);
 
+  // sementara: skip jika ada
   if (fs.existsSync(controllerPath)) {
-    fs.unlinkSync(controllerPath);
+    logger.warning(`Skip controller: ${controllerPath}`)
+    return true
   }
+
+  // if (fs.existsSync(controllerPath)) {
+  //   fs.unlinkSync(controllerPath);
+  // }
 
   if (!fs.existsSync(path.join(basePath, folder))) {
     fs.mkdirSync(path.join(basePath, folder), { recursive: true });
   }
-
-  const validations: Record<string, string> = {};
   const tableName = conversion.strSnake(conversion.strPlural(conversion.strPascal(model)));
 
-  for (const [column, rules] of Object.entries(schema)) {
-    const typeMatch = rules.match(/type:(\w+)/);
-    const type = typeMatch?.[1] ?? "string";
+  // for (const [column, rules] of Object.entries(schema)) {
+  //   const typeMatch = rules.match(/type:(\w+)/);
+  //   const type = typeMatch?.[1] ?? "string";
 
-    const validationRules: string[] = [];
+  //   const validationRules: string[] = [];
 
-    if (rules.includes("required")) {
-      validationRules.push("required");
-    } else {
-      validationRules.push("nullable");
-    }
+  //   if (rules.includes("required")) {
+  //     validationRules.push("required");
+  //   } else {
+  //     validationRules.push("nullable");
+  //   }
 
-    switch (type) {
-      case "bigInteger":
-      case "integer":
-        validationRules.push("number");
-        break;
-      case "string":
-        validationRules.push("string");
-        const lengthMatch = rules.match(/type:string,(\d+)/);
-        if (lengthMatch?.[1]) {
-          validationRules.push(`max:${lengthMatch[1]}`);
-        }
-        break;
-    }
+  //   switch (type) {
+  //     case "bigInteger":
+  //     case "integer":
+  //       validationRules.push("number");
+  //       break;
+  //     case "string":
+  //       validationRules.push("string");
+  //       const lengthMatch = rules.match(/type:string,(\d+)/);
+  //       if (lengthMatch?.[1]) {
+  //         validationRules.push(`max:${lengthMatch[1]}`);
+  //       }
+  //       break;
+  //   }
 
-    if (rules.includes("unique")) {
-      validationRules.push(`unique:${tableName},${column}`);
-    }
+  //   if (rules.includes("unique")) {
+  //     validationRules.push(`unique:${tableName},${column}`);
+  //   }
 
-    validations[column] = validationRules.join("|");
-  }
+  //   validations[column] = validationRules.join("|");
+  // }
 
-  const renderValidation =
-    "\n" +
-    Object.entries(validations)
-      .map(([col, val]) => `            "${col}": "${val}",`)
-      .join("\n") +
-    "\n        ";
 
   const withRelations = Object.keys(relations).map((r) => `'${r}'`);
   const renderWith = `.with([${withRelations.join(", ")}])`;
+
+  const validations = {
+    ...generateFieldValidations(model, schema),
+    ...generateRelationValidations(relations)
+  }
 
   let stub = fs.readFileSync(path.join(process.cwd(), "src", "utils", "commands", "make", "stubs", "light-controller.stub"), "utf-8");
 
   stub = stub
     .replace(/{{\s*name\s*}}/g, name)
     .replace(/{{\s*model\s*}}/g, model)
-    .replace(/{{\s*validations\s*}}/g, renderValidation)
+    .replace(/{{\s*validations\s*}}/g, renderValidationObject(validations))
     .replace(/{{\s*with\s*}}/g, renderWith);
 
   fs.writeFileSync(controllerPath, stub, "utf-8");
 
-  apiRouteGeneration(model, initialName);
+  // apiRouteGeneration(model, initialName);
 
   return true;
 }
@@ -490,71 +654,133 @@ export async function documentationGeneration(
 // =======================>
 // ## Command: Blueprint engine
 // =======================>
-export async function blueprint(structs: BlueprintSchemaTypes[]) {
-  const documentations: Array<Record<string, any>> = [];
+export async function runBlueprints(options?: { only?: string[] }) {
+  const loaded = loadBlueprintFiles()
+  const documentations: any[] = []
 
-  for (const struct of structs) {
-    const schema = struct.schema ?? {};
-    const relations = struct.relations ?? {};
-    const seeders = struct.seeders ?? [];
-    const controllers = struct.controllers ?? {};
+  for (const file of loaded) {
+    const name = file.file.replace(".blueprint.json", "")
 
-    await modelGeneration(struct.model, schema, relations);
+    if (options?.only && !options.only.includes(name)) continue
 
-    await migrationGeneration(struct.model, schema);
+    for (const struct of file.blueprints) {
+      const schema      = struct.schema ?? {}
+      const relations   = struct.relations ?? {}
+      const seeders     = struct.seeders ?? []
+      const controllers = struct.controllers ?? {}
 
-    if (controllers !== false) {
-      if (Object.keys(controllers).length > 0) {
-        for (const [route, controller] of Object.entries(controllers)) {
-          await controllerGeneration(struct.model, schema, relations, controller, route);
+      await modelGeneration(struct.model, schema, relations)
+      // await migrationGeneration(struct.model, schema)
+
+      if (controllers !== false) {
+        if (typeof controllers === "object" && Object.keys(controllers).length > 0) {
+          for (const [route, controller] of Object.entries(controllers as Record<string, any>)) {
+            await controllerGeneration(struct.model, schema, relations, controller, route)
+          }
+          documentations.push({ controllers, schema })
+        } else {
+          await controllerGeneration(struct.model, schema, relations)
+          documentations.push({ controllers: {}, schema })
         }
-        documentations.push({ controllers, schema, seeders });
-      } else {
-        const defaultRoute = conversion.strSlug(conversion.strSnake(conversion.strPlural(struct.model.replace("Controller", "")), "-"));
-        await controllerGeneration(struct.model, schema, relations);
-        documentations.push({
-          controllers: [{ [defaultRoute]: null }],
-          schema,
-          seeders,
-        });
+      }
+
+      if (seeders.length) {
+        // await seederGeneration(struct.model, schema, seeders)
       }
     }
-
-    if (seeders.length > 0) await seederGeneration(struct.model, schema, seeders);
   }
 
-  await documentationGeneration(documentations);
+  // await documentationGeneration(documentations)
 }
 
+// export async function blueprint(structs: BlueprintSchemaTypes[]) {
+//   const documentations: Array<Record<string, any>> = [];
+
+//   for (const struct of structs) {
+//     const schema = struct.schema ?? {};
+//     const relations = struct.relations ?? {};
+//     const seeders = struct.seeders ?? [];
+//     const controllers = struct.controllers ?? {};
+
+//     await modelGeneration(struct.model, schema, relations);
+
+//     await migrationGeneration(struct.model, schema);
+
+//     if (controllers !== false) {
+//       if (Object.keys(controllers).length > 0) {
+//         for (const [route, controller] of Object.entries(controllers)) {
+//           await controllerGeneration(struct.model, schema, relations, controller, route);
+//         }
+//         documentations.push({ controllers, schema, seeders });
+//       } else {
+//         const defaultRoute = conversion.strSlug(conversion.strSnake(conversion.strPlural(struct.model.replace("Controller", "")), "-"));
+//         await controllerGeneration(struct.model, schema, relations);
+//         documentations.push({
+//           controllers: [{ [defaultRoute]: null }],
+//           schema,
+//           seeders,
+//         });
+//       }
+//     }
+
+//     if (seeders.length > 0) await seederGeneration(struct.model, schema, seeders);
+//   }
+
+//   await documentationGeneration(documentations);
+// }
+
 
 
 // =======================>
-// ## Command: Blueprint runner choice
+// ## Command: Blueprint load json files
 // =======================>
-async function askChoice(message: string, choices: string[]): Promise<string> {
-  return new Promise((resolve) => {
-    console.log(message);
-    choices.forEach((c, i) => {
-      console.log(`${i + 1}. ${c}`);
-    });
+function loadBlueprintFiles(dir = "blueprints") {
+  const basePath = path.join(process.cwd(), "src", dir)
 
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
+  if (!fs.existsSync(basePath)) {
+    throw new Error("Blueprint folder not found")
+  }
 
-    rl.question("Masukkan nomor pilihan: ", (answer) => {
-      const index = parseInt(answer, 10) - 1;
-      rl.close();
-      if (index >= 0 && index < choices.length) {
-        resolve(choices[index]);
-      } else {
-        logger.error(`Pilihan tidak valid, default ke: ${choices[0]}`)
-        resolve(choices[0]);
+  return fs.readdirSync(basePath)
+    .filter(f => f.endsWith(".blueprint.json"))
+    .map(file => {
+      const fullPath = path.join(basePath, file)
+      const content = JSON.parse(fs.readFileSync(fullPath, "utf-8"))
+
+      if (!Array.isArray(content)) {
+        throw new Error(`${file} must export array of blueprints`)
       }
-    });
-  });
+
+      return {
+        file,
+        blueprints: content
+      }
+    })
 }
+// async function askChoice(message: string, choices: string[]): Promise<string> {
+//   return new Promise((resolve) => {
+//     console.log(message);
+//     choices.forEach((c, i) => {
+//       console.log(`${i + 1}. ${c}`);
+//     });
+
+//     const rl = readline.createInterface({
+//       input: process.stdin,
+//       output: process.stdout,
+//     });
+
+//     rl.question("Masukkan nomor pilihan: ", (answer) => {
+//       const index = parseInt(answer, 10) - 1;
+//       rl.close();
+//       if (index >= 0 && index < choices.length) {
+//         resolve(choices[index]);
+//       } else {
+//         logger.error(`Pilihan tidak valid, default ke: ${choices[0]}`)
+//         resolve(choices[0]);
+//       }
+//     });
+//   });
+// }
 
 
 
@@ -562,33 +788,44 @@ async function askChoice(message: string, choices: string[]): Promise<string> {
 // ## Command: blueprint
 // =====================================>
 export const blueprintCommand = new Command("blueprint")
-  .argument("[blueprint]", "Name of blueprint")
-  .description("Run blueprint generation")
-  .action(async (blueprint?: string) => {
-    if (blueprint) {
-      try {
-        const modulePath = `../blueprints/${conversion.strPascal(blueprint)}Blueprint`;
-        const { default: RunnerClass } = await import(modulePath);
+  .option("-o, --only <names...>", "Run only specific blueprints")
+  .description("Run blueprints")
+  .action(async (opts) => {
+    await runBlueprints({ only: opts.only })
 
-        const runner = new RunnerClass();
-        await runner.run();
+    logger.info("Success run all blueprints!")
+    process.exit(0);
+  })
 
-        logger.info(`Successfully Generated ${blueprint} Blueprint!`)
-      } catch (err) {
-        logger.error(`Blueprint ${blueprint} Not Found!`)
-      }
-    } else {
-      const runChoice = await askChoice("Choose what you want to run?", [
-        "Run Starter Blueprint",
-        "Run Registered Blueprint",
-      ]);
+// export const blueprintCommand = new Command("blueprint")
+//   .argument("[blueprint]", "Name of blueprint")
+//   .description("Run blueprint generation")
+//   .action(async (blueprint?: string) => {
+//     if (blueprint) {
+//       try {
+//         const modulePath = `../blueprints/${conversion.strPascal(blueprint)}Blueprint`;
+//         const { default: RunnerClass } = await import(modulePath);
 
-      if (runChoice === "Run Starter Blueprint") {
-        await new StarterBlueprint().run();
-        logger.info(`Successfully Generated Starter Blueprints!`)
-      } else {
-        await new BaseBlueprint().run();
-        logger.info(`Successfully Generated Registered Blueprints!`)
-      }
-    }
-  });
+//         const runner = new RunnerClass();
+//         await runner.run();
+
+//         logger.info(`Successfully Generated ${blueprint} Blueprint!`)
+//       } catch (err) {
+//         logger.error(`Blueprint ${blueprint} Not Found!`)
+//       }
+//     } else {
+//       const runChoice = await askChoice("Choose what you want to run?", [
+//         "Run Starter Blueprint",
+//         "Run Registered Blueprint",
+//       ]);
+
+//       if (runChoice === "Run Starter Blueprint") {
+//         await new StarterBlueprint().run();
+//         logger.info(`Successfully Generated Starter Blueprints!`)
+//       } else {
+//         await new BaseBlueprint().run();
+//         logger.info(`Successfully Generated Registered Blueprints!`)
+//       }
+//     }
+//   });
+

@@ -1,16 +1,16 @@
 import type { ControllerContext } from "elysia"
 import { db } from '@utils'
-import { {{ model }} } from '@models'
+import { UserMailToken } from '@models'
 
-export class {{ name }} {
+export class UserMailTokenController {
     // ========================================>
     // ## Display a listing of the resource.
     // ========================================>
     static async index(c: ControllerContext) {
-        const record = await {{ model }}.query(){{ with }}
-            .apply({{ model }}.search(c.getQuery.search, ['name']))
-            .apply({{ model }}.filter(JSON.parse(c.getQuery.filter)))
-            .apply({{ model }}.selectableColumns())
+        const record = await UserMailToken.query().with([])
+            .apply(UserMailToken.search(c.getQuery.search, ['name']))
+            .apply(UserMailToken.filter(JSON.parse(c.getQuery.filter)))
+            .apply(UserMailToken.selectableColumns())
             .orderBy(c.getQuery.sortBy, c.getQuery.sortDirection)
             .paginate(1,c.getQuery.paginate)
         
@@ -22,17 +22,23 @@ export class {{ name }} {
     // ## Store a newly created resource.
     // =============================================>
     static async store(c: ControllerContext) {
-        c.validation<{{ model }}>({{{ validations }}})
+        c.validation<UserMailToken>({{
+  "user_id": ["nullable","number"],
+  "type": ["nullable","string","max:10"],
+  "token": ["nullable","string","max:200"],
+  "used_at": ["nullable"],
+  "expired_at": ["nullable"]
+}})
 
         const trx = await db.beginTransaction()
         
-        const record = new {{ model }}().dumpField(c.body as Record<string, any>)
+        const record = new UserMailToken().dumpField(c.body as Record<string, any>)
 
         try {
             await record.save({ trx })            
         } catch (err) {
             await trx.rollback()
-            c.responseError(err as Error, "Create {{ model }}")
+            c.responseError(err as Error, "Create UserMailToken")
         }
 
         await trx.commit()
@@ -44,9 +50,15 @@ export class {{ name }} {
     // ## Update the specified resource.
     // ============================================>
     static async update(c: ControllerContext) {
-        const record = await {{ model }}.query().apply({{ model }}.findOrNotFound(c.params.id))
+        const record = await UserMailToken.query().apply(UserMailToken.findOrNotFound(c.params.id))
 
-        c.validation<{{ model }}>({{{ validations }}})
+        c.validation<UserMailToken>({{
+  "user_id": ["nullable","number"],
+  "type": ["nullable","string","max:10"],
+  "token": ["nullable","string","max:200"],
+  "used_at": ["nullable"],
+  "expired_at": ["nullable"]
+}})
         
         const trx = await db.beginTransaction()
         
@@ -56,7 +68,7 @@ export class {{ name }} {
             await record.save({ trx })
         } catch (err) {
             await trx.rollback()
-            c.responseError(err as Error, "Create {{ model }}")
+            c.responseError(err as Error, "Create UserMailToken")
         }
         
         await trx.commit()
@@ -68,12 +80,12 @@ export class {{ name }} {
     // ## Remove the specified resource.
     // ===============================================>
     static async destroy(c: ControllerContext) {
-        const record = await {{ model }}.query().apply({{ model }}.findOrNotFound(c.params.id))
+        const record = await UserMailToken.query().apply(UserMailToken.findOrNotFound(c.params.id))
         
         try {
             await record.delete()
         } catch (err) {
-            c.responseError(err as Error, "Delete {{ model }}")
+            c.responseError(err as Error, "Delete UserMailToken")
         }
 
         c.responseSuccess(record.toJSON())
