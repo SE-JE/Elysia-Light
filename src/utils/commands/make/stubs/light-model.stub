@@ -1,3 +1,4 @@
+{{ marker }}
 import { Model{{ import_utils }} } from '@utils'
 {{ import }}
 

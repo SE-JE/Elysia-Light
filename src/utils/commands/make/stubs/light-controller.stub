@@ -1,5 +1,5 @@
+{{ marker }}
 import type { ControllerContext } from "elysia"
-import { db } from '@utils'
 import { {{ model }} } from '@models'
 
 export class {{ name }} {

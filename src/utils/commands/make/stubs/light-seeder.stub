@@ -1,3 +1,4 @@
+{{ marker }}
 import { {{ model }} } from "@models";
 
 export default async function {{ name }}Seeder() {

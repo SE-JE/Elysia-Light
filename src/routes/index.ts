@@ -1,7 +1,5 @@
-import {
-Elysia } from 'elysia'
+import { Elysia } from 'elysia'
 import { api, Middleware } from '@utils'
-
 import { 
     AuthController, 
     BaseController, 
