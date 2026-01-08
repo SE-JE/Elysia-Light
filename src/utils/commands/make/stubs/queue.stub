@@ -1,0 +1,7 @@
+import { queue } from '@utils'
+
+export const {{ name }}QueueWorker = () => {
+  queue.worker("{{ worker_name }}", async (payload) => {
+    
+  })
+}

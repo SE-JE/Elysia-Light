@@ -1,42 +1,64 @@
 import path from "path";
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from "fs";
 import { Command } from "commander";
-import { logger } from "@utils";
+import { conversion, logger } from "@utils";
+import { makeLightController } from "./light-controller";
+import { makeMigration } from "./basic-migration";
+import { makeSeeder } from "./basic-seeder";
 
 
 
 // =====================================>
 // ## Command: make:light-model
 // =====================================>
-const makeLightModelCommand  =  new Command("make:light-model")
-  .argument("<name>", "Nama model")
+export const makeLightModelCommand  =  new Command("make:light-model")
+  .argument("<name>", "Name of model")
+  .option("-r", "Generate all resource (controller, migration, seeder)")
   .description("Make the Light Model")
-  .action((name) => {
-    const basePath  =  path.join(process.cwd(), "src", "models");
+  .action((name, options) => {
+    makeLightModel(name)
 
-    if (!existsSync(basePath)) {
-      mkdirSync(basePath, { recursive: true });
+    if(options.r) {
+      makeLightController(name)
+      makeMigration("create_" + name)
+      makeSeeder(name)
     }
-
-    const filePath  =  path.join(basePath, `${name}.ts`);
-
-    if (existsSync(filePath)) {
-      logger.error(`Model ${name} already exists!`);
-      return;
-    }
-
-    let stub = readFileSync(path.join(process.cwd(), "src", "utils", "commands", "make", "stubs", "light-model.stub"), "utf-8");
-
-    stub = stub.replace(/{{\s*name\s*}}/g, name)
-      .replace(/{{\s*fillable\s*}}/g, "")
-      .replace(/{{\s*searchable\s*}}/g, "")
-      .replace(/{{\s*selectable\s*}}/g, "")
-      .replace(/{{\s*import\s*}}/g, "")
-      .replace(/{{\s*relations\s*}}/g, "");
-
-    writeFileSync(filePath, stub);
-
-    logger.info(`Successfully create light model ${name}!`);
+    
+    process.exit(0);
   });
 
-export default makeLightModelCommand;
+
+
+export const makeLightModel = (modelName: string) => {
+  const name = conversion.strPascal(modelName)
+  const filename = conversion.strSlug(modelName) + ".model.ts"
+
+  const basePath  =  path.join(process.cwd(), "src", "models");
+
+  if (!existsSync(basePath)) {
+    mkdirSync(basePath, { recursive: true });
+  }
+
+  const filePath  =  path.join(basePath, filename);
+
+  if (existsSync(filePath)) {
+    logger.error(`Model ${name} already exists!`);
+    return;
+  }
+
+  let stub = readFileSync(path.join(process.cwd(), "src", "utils", "commands", "make", "stubs", "light-model.stub"), "utf-8");
+
+  stub = stub
+    .replace(/{{\s*name\s*}}/g, name)
+    .replace(/{{\s*fields\s*}}/g, "")
+    .replace(/{{\s*attributes\s*}}/g, "")
+    .replace(/{{\s*relations\s*}}/g, "")
+    .replace(/{{\s*hooks\s*}}/g, "")
+    .replace(/{{\s*import\s*}}/g, "")
+    .replace(/{{\s*import_utils\s*}}/g, "")
+    .replace(/{{\s*marker\s*}}/g, "")
+
+  writeFileSync(filePath, stub);
+
+  logger.info(`Successfully create light model ${name}!`);
+}

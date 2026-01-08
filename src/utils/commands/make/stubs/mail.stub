@@ -1,0 +1,15 @@
+import { renderMailTemplate, sendMail } from "@utils"
+
+export async function {{ name }}Mail(to: string) {
+  const content = renderMailTemplate("{{ name }}", {
+      title: "{{ title }}",
+  })
+
+  const send = await sendMail({
+      subject: "{{ title }}",
+      to: to,
+      content: content
+  })
+  
+  return send;
+}

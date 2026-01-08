@@ -1135,7 +1135,7 @@ export function extendModelQuery(
       const [{ count }]  =  await this.clone().clearSelect().clearOrder().count('* as count')
       const total        =  Number(count)
 
-      if(!total) throw status(404, { message: "Error: Record not found!" })
+      if(!total) return { data: [], total: 0 }
 
       if (this._withTree && Object.keys(this._withTree).length) {
         await loadRelations(data, this.$model, this._withTree)
@@ -1385,10 +1385,10 @@ export function extendModelQuery(
           return col;
         });
       }
+      
+      q.clearSelect().select(processedCols);
 
-      q.select(processedCols);
-
-      return await q.get();
+      return await q;
     };
   }
 
@@ -1407,6 +1407,7 @@ export function extendModelQuery(
 
       if (isOption) {
         const data = await this.option(selectableOption);
+
         return { data, total: data.length };
       }
 
@@ -1423,8 +1424,8 @@ export function extendModelQuery(
   if (!(query as any).resolve) {
     ;(query as any).resolve = async function (input: any = {}) {
       const gq = input?.getQuery ? input.getQuery : input
-      const isOption = input?.headers?.["x-options"] || gq?.isOption || false
-      
+      const isOption = input?.headers?.["x-option"] || gq?.isOption || false
+
       this.
         expand?.(gq.expand).
         search?.(gq.search, {
@@ -1440,9 +1441,7 @@ export function extendModelQuery(
 
       if (isOption || gq.paginate) return await this.paginateOrOption?.(gq.page, gq.paginate, isOption, gq.selectableOption)
 
-      const data = await this.get()
-
-      if (!data.length) throw status(404, { message: "Error: Record not found!" });
+      const data = await this.query().get()
 
       return { data, total: data.length }
     }

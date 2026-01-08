@@ -1,9 +1,10 @@
-import { Elysia } from 'elysia'
+import {
+Elysia } from 'elysia'
 import { api, Middleware } from '@utils'
 import { 
     AuthController, 
     BaseController, 
-    UserController
+    UserController,
 } from '@controllers'
 
 export const routes = (app: Elysia) => app.group('/api', (route) => {

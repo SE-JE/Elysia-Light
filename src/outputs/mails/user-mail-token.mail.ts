@@ -10,7 +10,7 @@ export async function UserMailToken(user: Record<string, any>, token: string) {
   const send = await sendMail({
       subject: "Email Verification",
       to: user?.email,
-      html: content
+      content: content
   })
   
   return send;

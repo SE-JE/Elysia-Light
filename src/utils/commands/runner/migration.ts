@@ -3,6 +3,7 @@ import path from "path";
 import knex from "knex";
 import { Command } from "commander";
 import { logger } from "@utils";
+import { runSeeder } from "./seeder";
 
 
 
@@ -11,26 +12,29 @@ import { logger } from "@utils";
 // =====================================>
 export const migrateCommand = new Command("migrate")
   .description("Run all migration")
-  .action(async () => 
-{
+  .option("--seed", "Run seeder after migrate")
+  .action(async (options) => {
+    await ensureDatabaseExists(process.env.DB_DATABASE || "db_elysia_light");
 
-  await ensureDatabaseExists(process.env.DB_DATABASE || "db_elysia_light");
+    const { db } = await import("@utils/db.util");
 
-  const { db } = await import("@utils/db.util");
+    const hasTable = await db.schema.hasTable("migrations");
+    if (!hasTable) {
+      await db.schema.createTable("migrations", (table) => {
+        table.increments("id").primary();
+        table.string("name").notNullable();
+        table.timestamp("batch").defaultTo(db.raw("CURRENT_TIMESTAMP"));
+      });
+    }
 
-  const hasTable = await db.schema.hasTable("migrations");
-  if (!hasTable) {
-    await db.schema.createTable("migrations", (table) => {
-      table.increments("id").primary();
-      table.string("name").notNullable();
-      table.timestamp("batch").defaultTo(db.raw("CURRENT_TIMESTAMP"));
-    });
-  }
+    await runMigrationFile()
 
-  await runMigrationFile()
+    if (options.seed) {
+      await runSeeder()
+    }
 
-  process.exit(0);
-});
+    process.exit(0);
+  });
 
 
 
@@ -39,27 +43,31 @@ export const migrateCommand = new Command("migrate")
 // =====================================>
 export const migrateFreshCommand = new Command("migrate:fresh")
   .description("Fresh and run all migration")
-  .action(async () => 
-{
-  await ensureDatabaseExists(process.env.DB_DATABASE || "db_elysia_light");
+  .option("--seed", "Run seeder after migrate")
+  .action(async (options) => {
+    await ensureDatabaseExists(process.env.DB_DATABASE || "db_elysia_light");
 
-  const { db } = await import("@utils/db.util");
+    const { db } = await import("@utils/db.util");
 
-  await db.raw(`DROP SCHEMA public CASCADE;`);
-  await db.raw(`CREATE SCHEMA public;`);
+    await db.raw(`DROP SCHEMA public CASCADE;`);
+    await db.raw(`CREATE SCHEMA public;`);
 
-  console.log("Database schema has been freshed...");
+    console.log("Database schema has been freshed...");
 
-  await db.schema.createTable("migrations", (table) => {
-    table.increments("id").primary();
-    table.string("name").notNullable();
-    table.timestamp("batch").defaultTo(db.raw("CURRENT_TIMESTAMP"));
+    await db.schema.createTable("migrations", (table) => {
+      table.increments("id").primary();
+      table.string("name").notNullable();
+      table.timestamp("batch").defaultTo(db.raw("CURRENT_TIMESTAMP"));
+    });
+
+    await runMigrationFile()
+
+    if (options.seed) {
+      await runSeeder()
+    }
+
+    process.exit(0);
   });
-
-  await runMigrationFile()
-
-  process.exit(0);
-});
 
 
 

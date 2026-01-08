@@ -11,12 +11,12 @@ export const conversion = {
     return toWords(value).join(delimiter);
   },
 
-  strCamel(value: string): string {
-    return toWords(value).map((w, i) => i === 0 ? w : w[0].toUpperCase() + w.slice(1)).join("");
+  strCamel(value: string, delimiter: string = ""): string {
+    return toWords(value).map((w, i) => i === 0 ? w : w[0].toUpperCase() + w.slice(1)).join(delimiter);
   },
 
-  strPascal(value: string): string {
-    return toWords(value).map(w => w[0].toUpperCase() + w.slice(1)).join("");
+  strPascal(value: string, delimiter: string = ""): string {
+    return toWords(value).map(w => w[0].toUpperCase() + w.slice(1)).join(delimiter);
   },
 
   strPlural(value: string): string {

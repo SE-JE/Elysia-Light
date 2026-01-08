@@ -1,0 +1,5 @@
+import { queue } from "@utils";
+
+export async function {{ name }}Notification(payload: Record<string,any>) {
+  await queue.add('notification', { payload })
+}

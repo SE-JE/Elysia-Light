@@ -1,0 +1,11 @@
+[
+    {
+        "model"   :  "",
+        "schema"  :  {},
+        "relations": {},
+        "controllers": {},
+        "migrations"  :  true,
+        "seeders"      :  [],
+        "documentation": true
+    }
+]

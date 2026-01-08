@@ -8,7 +8,7 @@ import { logger } from "@utils";
 // =====================================>
 // ## Command: make:migration
 // =====================================>
-const makeDaMigrationCommand = new Command("make:da:migration")
+export const makeDaMigrationCommand = new Command("make:da:migration")
   .argument("<name>", "Nama migration")
   .description("Membuat file migration baru")
   .action((name) => {
@@ -28,10 +28,10 @@ const makeDaMigrationCommand = new Command("make:da:migration")
     content  =  content.replace(/{{\s*tableName\s*}}/g, tableName || "")
 
     writeFileSync(filePath, content);
-    logger.info(`Migration ${fileName} created!`);
-  });
 
-export default makeDaMigrationCommand;
+    logger.info(`Migration ${fileName} created!`);
+    process.exit(0);
+  });
 
 
 

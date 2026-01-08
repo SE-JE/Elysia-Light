@@ -97,7 +97,7 @@ export const Middleware = {
       
       set.headers['Access-Control-Allow-Origin']      = allowedOrigin
       set.headers['Access-Control-Allow-Methods']     = process.env.APP_CORS_METHODS || 'GET, POST, PUT, DELETE, OPTIONS'
-      set.headers['Access-Control-Allow-Headers']     = 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-OPTIONS'
+      set.headers['Access-Control-Allow-Headers']     = 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Option'
       set.headers['Access-Control-Allow-Credentials'] = 'true'
 
       if (request.method === 'OPTIONS') {
@@ -260,6 +260,7 @@ function bodyParsePathFormat(path: string): string[] {
 }
 
 function bodyParseValueFormat(value: any) {
+  if (value == "" || value == null || value == "null") return null;
   if (typeof value !== "string") return value;
   if (value === "true") return true;
   if (value === "false") return false;

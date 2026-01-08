@@ -8,7 +8,7 @@ import { logger } from "@utils";
 export interface SendMailOptions {
   to            :  string;
   subject       :  string;
-  html         ?:  string;
+  content      ?:  string;
   text         ?:  string;
   attachments  ?:  {
     filename    :  string;
@@ -25,7 +25,7 @@ export async function sendMail(options: {
   to            :  string;
   subject       :  string;
   text         ?:  string;
-  html         ?:  string;
+  content      ?:  string;
   attachments  ?:  { filename: string; path: string }[];
 }) {
   const transporter = nodemailer.createTransport({
@@ -43,7 +43,7 @@ export async function sendMail(options: {
     to           :  options.to,
     subject      :  options.subject,
     text         :  options.text,
-    html         :  options.html,
+    html         :  options.content,
     attachments  :  options.attachments,
   })) as SentMessageInfo;
 
@@ -59,7 +59,7 @@ export async function sendMail(options: {
 export function renderMailTemplate(template: string, options: Record<string, string>) {
   const templateDir = join(import.meta.dir, "./../outputs/mails/templates");
 
-  const contentPath = join(templateDir, `${template}.stub`);
+  const contentPath = join(templateDir, `${template}.mail.stub`);
   let content = readFileSync(contentPath, "utf-8");
 
   for (const [key, value] of Object.entries(options)) {
@@ -67,12 +67,12 @@ export function renderMailTemplate(template: string, options: Record<string, str
     content = content.replace(regex, value);
   }
 
-  let layout = readFileSync(join(templateDir, "layout.stub"), "utf-8");
+  let layout = readFileSync(join(templateDir, "layout.mail.stub"), "utf-8");
 
   const globalVars = {
     ...options,
-    date: "20-10-2025",
-    app_name: process.env.APP_NAME || "",
+    date      :  "20-10-2025",
+    app_name  :  process.env.APP_NAME || "",
   };
 
   for (const [key, value] of Object.entries(globalVars)) {

@@ -1,7 +1,9 @@
+import { {{ model }} } from "@models";
+
 export default async function {{ name }}() {
     // =========================>
     // ## Seed the application's database
     // =========================>
     
-    // something amazing
+    await {{ model }}.query().insert([]);
 }

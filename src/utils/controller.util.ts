@@ -73,20 +73,20 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
   // ## Validation request body
   // ===================================>
   validation: async <T extends object>(
-  rules: Partial<Record<keyof T, ValidationRules[] | string>>
-) => {
-  const result = await validate(
-    body as Record<string, any>,
-    rules as ValidationRules
-  )
+    rules: Partial<Record<keyof T, ValidationRules[] | string>>
+  ) => {
+    const result = await validate(
+      body as Record<string, any>,
+      rules as ValidationRules
+    )
 
-  if (!result.valid) {
-    throw status(422, {
-      message: "Error: Unprocessable Entity!",
-      errors: result.errors,
-    })
-  }
-},
+    if (!result.valid) {
+      throw status(422, {
+        message: "Error: Unprocessable Entity!",
+        errors: result.errors,
+      })
+    }
+  },
 
 
 

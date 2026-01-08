@@ -1,44 +1,49 @@
 import path from "path";
 import fs, { writeFileSync, mkdirSync, existsSync } from "fs";
 import { Command } from "commander";
-import { logger } from "@utils";
+import { conversion, logger } from "@utils";
 
 
 
 // =====================================>
 // ## Command: make:migration
 // =====================================>
-const makeMigrationCommand = new Command("make:migration")
+export const makeMigrationCommand = new Command("make:migration")
   .argument("<name>", "Nama migration")
   .description("Membuat file migration baru")
   .action((name) => {
-    const timestamp  =  new Date(Date.now());
-    const fileName   =  `${migrationTimestampFormat(timestamp)}_${name}_table.ts`;
-    const filePath   =  path.join(process.cwd(), "src", "database", "migrations", fileName);
-
-    const { className, tableName } = parseName(name);
-
-    if (!existsSync(path.dirname(filePath))) {
-      mkdirSync(path.dirname(filePath), { recursive: true });
-    }
-
-    let content = fs.readFileSync('./src/utils/commands/make/stubs/basic-migration.stub', 'utf-8');;
-    
-    content  =  content.replace(/{{\s*className\s*}}/g, className || "")
-    content  =  content.replace(/{{\s*tableName\s*}}/g, tableName || "")
-
-    writeFileSync(filePath, content);
-    logger.info(`Migration ${fileName} created!`);
+    makeMigration(name)
   });
-
-export default makeMigrationCommand;
-
 
 
 
 // =====================================>
 // ## Command: migration helpers
 // =====================================>
+export const makeMigration = (migrationName: string) => {
+  const name       =  conversion.strSnake(conversion.strPlural(migrationName))
+  const timestamp  =  new Date(Date.now());
+  const fileName   =  `${migrationTimestampFormat(timestamp)}_${name}_table.ts`;
+  const filePath   =  path.join(process.cwd(), "src", "database", "migrations", fileName);
+
+  const { className, tableName } = parseName(name);
+
+  if (!existsSync(path.dirname(filePath))) {
+    mkdirSync(path.dirname(filePath), { recursive: true });
+  }
+
+  let content = fs.readFileSync('./src/utils/commands/make/stubs/basic-migration.stub', 'utf-8');;
+  
+  content  =  content.replace(/{{\s*className\s*}}/g, className || "")
+  content  =  content.replace(/{{\s*tableName\s*}}/g, tableName || "")
+
+  writeFileSync(filePath, content);
+
+  logger.info(`Migration ${fileName} created!`);
+
+  process.exit(0);
+}
+
 export const migrationTimestampFormat = (date: any) => {
   const year   =  date.getFullYear();
   const month  =  String(date.getMonth() + 1).padStart(2, '0');
