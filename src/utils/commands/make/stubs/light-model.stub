@@ -1,5 +1,5 @@
 {{ marker }}
-import { Model{{ import_utils }} } from '@utils'
+import { Model, SoftDelete{{ import_utils }} } from '@utils'
 {{ import }}
 
 export class {{ name }} extends Model {
@@ -8,11 +8,8 @@ export class {{ name }} extends Model {
     // =====================>
 {{ fields }}
 
-
-    // =====================>
-    // ## Attribute
-    // =====================>
-{{ attributes }}
+    @SoftDelete()
+    deleted_at!:any
 
 
     // =========================>
@@ -22,10 +19,13 @@ export class {{ name }} extends Model {
 
 
     // =====================>
+    // ## Attribute
+    // =====================>
+{{ attributes }}
+
+
+    // =====================>
     // ## Hook
     // =====================>
-    constructor () {
-        super()
-{{ hooks }}
-    }
+{{ hooks }}  
 }

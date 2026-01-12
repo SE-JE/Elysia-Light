@@ -10,7 +10,3 @@ export async function up(knex: Knex): Promise<void> {
     table.timestamp('at', { useTz: true }).notNullable().defaultTo(knex.fn.now()).index()
   })
 }
-
-export async function down(knex: Knex): Promise<void> {
-  await knex.schema.dropTableIfExists('activity_logs')
-}

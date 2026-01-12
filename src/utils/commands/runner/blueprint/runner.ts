@@ -8,7 +8,10 @@ import { migrationGeneration } from "./migration-generation";
 import { controllerGeneration } from "./controller-generation";
 import { seederGeneration } from "./seeder-generation";
 import { generateDrawioEntityDocumentation, generateMermaidEntityDocumentation, generatePostmanAPIDocumentation } from "./documentation-generation";
+import { exec as execCb } from "child_process"
+import { promisify } from "util"
 
+const exec = promisify(execCb)
 
 
 export interface BlueprintSchema {
@@ -42,6 +45,11 @@ export const blueprintCommand = new Command("blueprint")
     await runBlueprints({ only: opts.only })
 
     logger.info("Success run all blueprints!")
+    
+    await exec("bunx barrelsby -c barrels.json", { cwd: path.resolve() })
+
+    logger.info("Success generate auto import all modules!")
+    
     process.exit(0);
   })
 
@@ -51,7 +59,7 @@ export const blueprintCommand = new Command("blueprint")
 // =======================>
 export async function runBlueprints(options?: { only?: string[] }) {
   const loaded = loadBlueprintFiles()
-  const documentations: any[] = []
+  const postmanSchemas: any[] = []
 
   for (const file of loaded) {
     const name = file.file.replace(".blueprint.json", "")
@@ -69,7 +77,7 @@ export async function runBlueprints(options?: { only?: string[] }) {
       await modelGeneration(struct.model, schema, relations, marker)
 
       if (struct.migrations !== false) {
-        await migrationGeneration(struct.model, schema, marker)
+        await migrationGeneration(struct.model, schema, relations, marker)
       }
 
       if (controllers !== false) {
@@ -78,16 +86,21 @@ export async function runBlueprints(options?: { only?: string[] }) {
             const [controller, route] = item.split(" ")
             await controllerGeneration(struct.model, schema, relations, controller, route || controller, marker)
           })
-          
-          if (struct.documentations !== false) {
-            documentations.push({ controllers, schema })
-          }
         } else {
           await controllerGeneration(struct.model, schema, relations, struct.model, struct.model, marker)
-          
-          if (struct.documentations !== false) {
-            documentations.push({ controllers: {}, schema })
-          }
+        }
+
+        if(struct.postman !== false) {
+          const controllerRoutes = Array.isArray(controllers) && controllers.length ? controllers.map(c => {
+            const [controller, route] = c.split(" ")
+            return route || controller
+          }) : [struct.model]
+
+          postmanSchemas.push({
+            model: struct.model,
+            schema,
+            controllers: controllerRoutes
+          })
         }
       }
 
@@ -95,12 +108,14 @@ export async function runBlueprints(options?: { only?: string[] }) {
         await seederGeneration(struct.model, schema, seeders, marker)
       }
 
-      await generateMermaidEntityDocumentation(file.file, file.blueprints)
+      if(struct.mermaid !== false) {
+        await generateMermaidEntityDocumentation(file.file, file.blueprints)
+      }
     }
   }
 
   await generateDrawioEntityDocumentation(loaded)
-  await generatePostmanAPIDocumentation(documentations)
+  await generatePostmanAPIDocumentation(postmanSchemas)
 }
 
 

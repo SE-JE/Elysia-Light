@@ -8,8 +8,4 @@ export default class {{ className }} extends DAMigration {
       engine: "MergeTree",
     })
   }
-
-  async down() { 
-    await this.dropTable("{{ tableName }}")
-  }
 }

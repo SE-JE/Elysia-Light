@@ -24,17 +24,13 @@ export async function generatePostmanAPIDocumentation(
     fs.unlinkSync(filePath);
   }
 
-  const folders: any[] = [];
+  const folders = new Map<string, any>()
 
   for (const documentation of documentations) {
-    const controllers = documentation["controllers"] || {};
+    const { controllers, schema } = documentation
 
-    for (const [route] of Object.entries(controllers)) {
-      const folderName = route
-        .split("-")
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(" ");
-      const schema = documentation["schema"] ?? {};
+    for (const route of controllers) {
+      const folderName = route.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 
       const crudOperations = [
         {
@@ -80,10 +76,14 @@ export async function generatePostmanAPIDocumentation(
         },
       }));
 
-      folders.push({
-        name: folderName,
-        items,
-      });
+      if (!folders.has(folderName)) {
+        folders.set(folderName, {
+          name: folderName,
+          items: []
+        })
+      }
+
+      folders.get(folderName).items.push(...items)
     }
   }
 
@@ -92,7 +92,7 @@ export async function generatePostmanAPIDocumentation(
       name: collectionName,
       schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     },
-    item: folders,
+    item: Array.from(folders.values()),
   };
 
   fs.writeFileSync(filePath, JSON.stringify(collection, null, 2), "utf-8");
@@ -105,7 +105,9 @@ export async function generatePostmanAPIDocumentation(
 function extractSchema(schema: Record<string, string>) {
   const obj: Record<string, any> = {};
   for (const key of Object.keys(schema)) {
-    obj[key] = "";
+    if (schema[key].includes("fillable")) {
+      obj[key] = ""
+    }
   }
   return obj;
 }
@@ -207,22 +209,41 @@ function renderMermaidRelations(
 
 
 // =========================================>
-// ## Blueprint: drawio entity documentation generation
+// ## Blueprint: drawio entity documentation generation (FAN ROUTING VERSION)
 // =========================================>
-const MODULE_WIDTH = 1600      
+const MODULE_WIDTH = 1600
 const MODULE_PADDING_X = 80
-const MODULE_PADDING_Y = 80
+const MODULE_PADDING_Y = 140
 
 const ENTITY_COL_WIDTH = 320
 const ENTITY_ROW_HEIGHT = 240
 const ENTITY_COLS = 3
 
+const TABLE_WIDTH = 260
 
+const RELATION_LIFT = 30
+const RELATION_LANE_GAP = 10
+const RELATION_LANE_OFFSET = 140
+const RELATION_HORIZONTAL_GAP = 8
+const MODULE_RELATION_TOP_OFFSET = 120
+
+function colorFromString(input: string) {
+  let hash = 0
+  for (let i = 0; i < input.length; i++) {
+    hash = input.charCodeAt(i) + ((hash << 5) - hash)
+  }
+
+  const hue = Math.abs(hash) % 360
+  const saturation = 70
+  const lightness = 60
+
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`
+}
 
 export async function generateDrawioEntityDocumentation(
   blueprintFiles: Array<{ file: string; blueprints: any[] }>
 ) {
-  const appName = conversion.strSlug(process.env.APP_NAME || "app");
+  const appName = conversion.strSlug(process.env.APP_NAME || 'app')
   const filePath = path.join(ERD_PATH, `${appName}.drawio.xml`)
 
   if (!fs.existsSync(ERD_PATH)) {
@@ -230,100 +251,144 @@ export async function generateDrawioEntityDocumentation(
   }
 
   let xml = drawioHeader()
-  const entityIds = new Map<string, string>()
+  const entityPositions = new Map<string, { x: number; y: number }>()
 
-  let moduleIndex = 0
-
-  for (const file of blueprintFiles) {
-    const moduleX = moduleIndex * MODULE_WIDTH
-    const moduleY = 0
+  blueprintFiles.forEach((file, moduleIndex) => {
+    const baseX = moduleIndex * MODULE_WIDTH
+    const baseY = 0
+    const color = colorFromString(file.file)
 
     renderDrawioModule(
       file.blueprints,
-      moduleX,
-      moduleY,
-      entityIds,
-      (chunk) => {
-        xml += "\n" + chunk
-      }
+      baseX,
+      baseY,
+      color,
+      entityPositions,
+      chunk => (xml += '\n' + chunk)
     )
+  })
 
-    moduleIndex++
-  }
-
-  xml += "\n" + drawioFooter()
-  fs.writeFileSync(filePath, xml, "utf-8")
+  xml += '\n' + drawioFooter()
+  fs.writeFileSync(filePath, xml, 'utf-8')
 }
-
 
 function renderDrawioModule(
   blueprints: any[],
   baseX: number,
   baseY: number,
-  entityIds: Map<string, string>,
+  color: string,
+  entityPositions: Map<string, { x: number; y: number }>,
   push: (xml: string) => void
 ) {
   blueprints.forEach((bp, i) => {
     const table = conversion.strSnake(
-      conversion.strPlural(bp.model.split("/").pop()!)
+      conversion.strPlural(bp.model.split('/').pop()!)
     )
 
     const col = i % ENTITY_COLS
     const row = Math.floor(i / ENTITY_COLS)
 
-    const x =
-      baseX +
-      MODULE_PADDING_X +
-      col * ENTITY_COL_WIDTH
+    const x = baseX + MODULE_PADDING_X + col * ENTITY_COL_WIDTH
+    const y = baseY + MODULE_PADDING_Y + row * ENTITY_ROW_HEIGHT
 
-    const y =
-      baseY +
-      MODULE_PADDING_Y +
-      row * ENTITY_ROW_HEIGHT
-
-    entityIds.set(table, table)
-
-    renderERDTableFromSchema(
-      table,
-      bp.schema ?? {},
-      x,
-      y,
-      push
-    )
+    entityPositions.set(table, { x, y })
+    renderERDTableFromSchema(table, bp.schema ?? {}, x, y, push)
   })
 
-  // relasi tetap sama
-  blueprints.forEach((bp) => {
+  const leftLaneX = baseX - RELATION_LANE_OFFSET
+  const rightLaneX = baseX + MODULE_WIDTH + RELATION_LANE_OFFSET
+
+  const moduleRelationTopY = baseY - MODULE_RELATION_TOP_OFFSET
+
+  let relationIndex = 0
+
+  blueprints.forEach(bp => {
     if (!bp.relations) return
 
     const source = conversion.strSnake(
-      conversion.strPlural(bp.model.split("/").pop()!)
+      conversion.strPlural(bp.model.split('/').pop()!)
     )
+
+    const sourcePos = entityPositions.get(source)
+    if (!sourcePos) return
 
     Object.entries(bp.relations).forEach(([name, def], idx) => {
       const targetModel = (def as string)
-        .replace(/\[\]|\[1\]|:/g, "")
-        .split(" ")[0]
+        .replace(/\[\]|\[1\]|:/g, '')
+        .split(' ')[0]
 
       const target = conversion.strSnake(
         conversion.strPlural(targetModel)
       )
 
-      if (!entityIds.has(target)) return
+      const targetPos = entityPositions.get(target)
+      if (!targetPos) return
+
+      const goLeft = targetPos.x < sourcePos.x
+      const laneX = goLeft
+        ? leftLaneX
+        : rightLaneX
+
+      const horizontalY = moduleRelationTopY - relationIndex * RELATION_HORIZONTAL_GAP
+      relationIndex++
+
+      const entryX = goLeft
+        ? targetPos.x - 10
+        : targetPos.x + TABLE_WIDTH + 10
 
       push(
-        renderDrawioRelation(
+        renderDrawioRelationFinal(
           `rel_${source}_${target}_${idx}`,
           source,
           target,
-          name
+          name,
+          sourcePos.x,
+          sourcePos.y,
+          targetPos.y,
+          laneX,
+          entryX,
+          horizontalY,
+          RELATION_LIFT,
+          color
         )
       )
     })
   })
 }
 
+function renderDrawioRelationFinal(
+  id: string,
+  source: string,
+  target: string,
+  label: string,
+  sourceX: number,
+  sourceY: number,
+  targetY: number,
+  laneX: number,
+  entryX: number,
+  horizontalY: number,
+  lift: number,
+  color: string
+) {
+  const sourceExitY = sourceY - lift
+  const targetEntryY = targetY + lift
 
+  return `
+<mxCell id="${id}" value="${label}"
+  style="edgeStyle=orthogonalEdgeStyle;rounded=0;jettySize=auto;strokeColor=${color};html=1;"
+  edge="1" parent="1" source="${source}" target="${target}">
+  <mxGeometry relative="1" as="geometry">
+    <Array as="points">
+      <mxPoint x="${sourceX}" y="${sourceExitY}"/>
+      <mxPoint x="${laneX}" y="${sourceExitY}"/>
+      <mxPoint x="${laneX}" y="${horizontalY}"/>
+      <mxPoint x="${entryX}" y="${horizontalY}"/>
+      <mxPoint x="${entryX}" y="${targetEntryY}"/>
+    </Array>
+  </mxGeometry>
+</mxCell>
+`.trim()
+}
 
 function drawioHeader(): string {
   return `
@@ -353,7 +418,6 @@ function renderERDTableFromSchema(
   push: (xml: string) => void
 ) {
   const fields = Object.entries(schema)
-
   push(renderDrawioTable(table, table, baseX, baseY, fields.length))
 
   fields.forEach(([name, def], index) => {
@@ -362,163 +426,49 @@ function renderERDTableFromSchema(
 
     push(renderDrawioTableRow(rowId, table, y))
 
-    const isPK = name === "id"
-    const isFK = name.endsWith("_id")
+    const isPK = name === 'id'
+    const isFK = name.endsWith('_id')
 
-    push(
-      renderDrawioTableCell(
-        `${rowId}_key`,
-        rowId,
-        isPK ? "PK" : isFK ? "FK" : "",
-        0,
-        40,
-        true
-      )
-    )
-
-    push(
-      renderDrawioTableCell(
-        `${rowId}_name`,
-        rowId,
-        `${name} : ${mapDrawioType(def)}`,
-        40,
-        220
-      )
-    )
+    push(renderDrawioTableCell(`${rowId}_key`, rowId, isPK ? 'PK' : isFK ? 'FK' : '', 0, 40, true))
+    push(renderDrawioTableCell(`${rowId}_name`, rowId, `${name} : ${mapDrawioType(def)}`, 40, 220))
   })
 }
 
-
 function mapDrawioType(def: string) {
-  if (def.includes("type:bigInteger")) return "bigint"
-  if (def.includes("type:integer")) return "int"
-  if (def.includes("type:json")) return "json"
-  if (def.includes("type:timestamp")) return "timestamp"
-  return "string"
+  if (def.includes('type:bigInteger')) return 'bigint'
+  if (def.includes('type:integer')) return 'int'
+  if (def.includes('type:json')) return 'json'
+  if (def.includes('type:timestamp')) return 'timestamp'
+  return 'string'
 }
 
-function renderDrawioTable(
-  tableId: string,
-  tableName: string,
-  x: number,
-  y: number,
-  rowCount: number
-) {
+function renderDrawioTable(tableId: string, tableName: string, x: number, y: number, rowCount: number) {
   const height = 30 + rowCount * 30
-
   return `
-<mxCell id="${tableId}"
-  value="${tableName}"
+<mxCell id="${tableId}" value="${tableName}"
   style="shape=table;startSize=30;container=1;collapsible=1;childLayout=tableLayout;fixedRows=1;rowLines=0;fontStyle=1;align=center;resizeLast=1;html=1;"
-  vertex="1"
-  parent="1">
-  <mxGeometry x="${x}" y="${y}" width="260" height="${height}" as="geometry"/>
+  vertex="1" parent="1">
+  <mxGeometry x="${x}" y="${y}" width="${TABLE_WIDTH}" height="${height}" as="geometry"/>
 </mxCell>
 `.trim()
 }
 
-function renderDrawioTableRow(
-  rowId: string,
-  tableId: string,
-  y: number
-) {
+function renderDrawioTableRow(rowId: string, tableId: string, y: number) {
   return `
-<mxCell id="${rowId}"
-  parent="${tableId}"
-  value=""
+<mxCell id="${rowId}" parent="${tableId}" value=""
   style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;"
   vertex="1">
-  <mxGeometry y="${y}" width="260" height="30" as="geometry"/>
+  <mxGeometry y="${y}" width="${TABLE_WIDTH}" height="30" as="geometry"/>
 </mxCell>
 `.trim()
 }
 
-
-function renderDrawioTableCell(
-  cellId: string,
-  rowId: string,
-  value: string,
-  x: number,
-  width: number,
-  bold = false
-) {
+function renderDrawioTableCell(cellId: string, rowId: string, value: string, x: number, width: number, bold = false) {
   return `
-<mxCell id="${cellId}"
-  parent="${rowId}"
-  value="${value}"
+<mxCell id="${cellId}" parent="${rowId}" value="${value}"
   style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;fontStyle=${bold ? 1 : 0};overflow=hidden;whiteSpace=wrap;html=1;"
   vertex="1">
   <mxGeometry x="${x}" width="${width}" height="30" as="geometry"/>
 </mxCell>
 `.trim()
 }
-// function renderDrawioEntity(
-//   id: string,
-//   table: string,
-//   fields: string[],
-//   x: number,
-//   y: number
-// ) {
-//   const value =
-//     table +
-//     "&#xa;" +
-//     fields.join("&#xa;")
-
-//   const height = 60 + fields.length * 20
-
-//   return `
-// <mxCell
-//   id="${id}"
-//   value="${value}"
-//   style="shape=mxgraph.er.entityTable;whiteSpace=wrap;"
-//   vertex="1"
-//   parent="1">
-//   <mxGeometry x="${x}" y="${y}" width="260" height="${height}" as="geometry"/>
-// </mxCell>
-// `.trim()
-// }
-
-
-
-
-// function mapDrawioERDField(
-//   name: string,
-//   def: string
-// ) {
-//   let type = "string"
-
-//   if (def.includes("type:bigInteger")) type = "bigint"
-//   else if (def.includes("type:integer")) type = "int"
-//   else if (def.includes("type:json")) type = "json"
-//   else if (def.includes("type:timestamp")) type = "timestamp"
-
-//   let suffix = ""
-
-//   if (name === "id") suffix = " PK"
-//   else if (name.endsWith("_id")) suffix = " FK"
-
-//   return `${name} : ${type}${suffix}`
-// }
-
-
-
-function renderDrawioRelation(
-  id: string,
-  source: string,
-  target: string,
-  label: string
-) {
-  return `
-<mxCell
-  id="${id}"
-  value="${label}"
-  style="edgeStyle=entityRelationEdgeStyle;html=1;"
-  edge="1"
-  parent="1"
-  source="${source}"
-  target="${target}">
-  <mxGeometry relative="1" as="geometry"/>
-</mxCell>
-`.trim()
-}
-

@@ -43,7 +43,7 @@ export async function modelGeneration(model: string, schema: Record<string, stri
 
   for (const [name, def] of Object.entries(relations)) {
     let type = "BelongsTo"
-    let target = def.replace(/\[\]|\[1\]|:/g, "").split(" ")[0]
+    let target = conversion.strPascal(def.replace(/\[\]|\[1\]|:/g, "").split(" ")[0])
 
     if (def.startsWith("[]:")) type = "BelongsToMany"
     else if (def.startsWith("[]")) type = "HasMany"
@@ -79,5 +79,35 @@ export async function modelGeneration(model: string, schema: Record<string, stri
     .replace(/{{\s*import_utils\s*}}/g, strImportUtils)
 
   fs.writeFileSync(filePath, stub, "utf-8")
+
+  for (const def of Object.values(relations)) {
+    if (!def.startsWith("[]:")) continue
+
+    const target = def.replace("[]:", "").trim()
+    generatePivotModel(model, target, marker, basePath)
+  }
+
   return true
+}
+
+
+function generatePivotModel(sourceModel: string, targetModel: string, marker: string, basePath: string) {
+  if (sourceModel > targetModel) return
+
+  const a = sourceModel.split("/").pop()!
+  const b = targetModel.split("/").pop()!
+
+  const pivotModelName = conversion.strPascal(a) + "Has" + conversion.strPascal(b)
+
+  const pivotRelations: Record<string, string> = {
+    [conversion.strSnake(a)]: a,
+    [conversion.strSnake(b)]: b
+  }
+
+  modelGeneration(
+    `${basePath}/${conversion.strSlug(pivotModelName)}`,
+    {},                 
+    pivotRelations,
+    marker
+  )
 }

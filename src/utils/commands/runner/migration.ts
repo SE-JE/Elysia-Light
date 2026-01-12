@@ -1,9 +1,30 @@
 import fs from "fs";
 import path from "path";
-import knex from "knex";
+import knex, { Knex } from "knex";
 import { Command } from "commander";
-import { logger } from "@utils";
+import { conversion, logger } from "@utils";
 import { runSeeder } from "./seeder";
+
+
+
+declare module "knex" {
+  namespace Knex {
+    interface CreateTableBuilder {
+      foreignIdFor(tableName: string, column?: string): Knex.ColumnBuilder
+      softDelete(column?: string): Knex.ColumnBuilder
+    }
+  }
+}
+
+const TableBuilder = require("knex/lib/schema/tablebuilder")
+
+TableBuilder.prototype.foreignIdFor = function (this: Knex.CreateTableBuilder, tableName: string, column = `${conversion.strSingular(tableName)}_id`) {
+  return this.bigInteger(column).unsigned()
+}
+
+TableBuilder.prototype.softDelete = function (this: Knex.CreateTableBuilder, column = `deleted_at`) {
+  return this.timestamp(column)
+}
 
 
 
@@ -81,30 +102,23 @@ async function runMigrationFile() {
   const migrated = migrations.map((row: any) => row.name);
 
   const migrationsDir = path.resolve("./src/database/migrations");
-  const files = fs.readdirSync(migrationsDir).sort();
+  const files = getMigrationFiles(migrationsDir).sort((a, b) => a.localeCompare(b))
 
   let countMigrated = 0;
 
   logger.info("Running migrations...")
 
   for (const file of files) {
-    if (migrated.includes(file)) continue
-    
-    const tableName = extractTableName(file)
+    const migrationFile = path.relative(migrationsDir, file)
 
-    if (tableName) {
-      const exists = await db.schema.hasTable(tableName)
-      if (exists) {
-        logger.error(`Table "${tableName}" already exists`)
-        process.exit(1);
-      }
-    }
+    if (migrated.includes(migrationFile)) continue
 
-    const mod = await import(path.join(migrationsDir, file));
+    const mod = await import(file)
+
     if (mod.up) {
       await mod.up(db)
-      await db.table("migrations").insert({ name: file });
-      logger.info(`Migrated: ${file}`)
+      await db.table("migrations").insert({ name: migrationFile })
+      logger.info(`Migrated: ${migrationFile}`)
     }
 
     countMigrated++
@@ -115,6 +129,25 @@ async function runMigrationFile() {
   } else {
     logger.info(`Nothing to migrate!`)
   }
+}
+
+
+function getMigrationFiles(dir: string, baseDir = dir): string[] {
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+
+  let files: string[] = []
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name)
+
+    if (entry.isDirectory()) {
+      files = files.concat(getMigrationFiles(fullPath))
+    } else if (entry.isFile() && entry.name.endsWith(".ts")) {
+      files.push(fullPath)
+    }
+  }
+
+  return files
 }
 
 

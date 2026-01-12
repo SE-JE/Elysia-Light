@@ -64,9 +64,7 @@ function apiRouteGeneration(routePath: string, controllerName: string) {
 
 
 function renderValidationObject(rules: Record<string, string[]>) {
-  return `
-${Object.entries(rules).map(([k, v]) => `            "${k}": ${JSON.stringify(v)}`).join(",\n")}
-        `
+  return `\n${Object.entries(rules).map(([k, v]) => `            "${k}": ${JSON.stringify(v)}`).join(",\n")}\n        `
 }
 
 function generateRelationValidations(relations: Record<string, string>) {
@@ -123,7 +121,7 @@ function generateFieldValidations(model: string, schema: Record<string, string>)
       r.push(`unique:${table},${field}`)
     }
 
-    rules[field] = r
+    if (r?.length) rules[field] =  r
   }
 
   return rules

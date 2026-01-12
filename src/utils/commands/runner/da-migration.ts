@@ -70,14 +70,21 @@ export const daMigrateCommand = new Command("da:migrate").description("Run all O
 
   const applied = await getMigratedNames()
 
-  const files = fs.existsSync(DW_MIGRATIONS_DIR) ? fs.readdirSync(DW_MIGRATIONS_DIR).sort() : []
+  const files = getMigrationFiles(DW_MIGRATIONS_DIR).sort((a, b) => a.localeCompare(b))
 
   let count = 0
 
   for (const file of files) {
     if (applied.includes(file)) continue
+    const relative = path.relative(DW_MIGRATIONS_DIR, file)
+
+    if (applied.includes(relative)) continue
 
     const filePath = path.join(DW_MIGRATIONS_DIR, file)
+    const migrationPath = path.relative(DW_MIGRATIONS_DIR, filePath)
+
+    if (applied.includes(migrationPath)) continue
+
     const mod = await import(filePath)
 
     if (!mod.default) continue
@@ -89,11 +96,10 @@ export const daMigrateCommand = new Command("da:migrate").description("Run all O
       continue
     }
 
-    logger.info(`Running: ${file}`)
     await migration.up()
-    await recordMigration(file)
+    await recordMigration(migrationPath)
 
-    logger.info(`Migrated: ${file}`)
+    logger.info(`Migrated: ${migrationPath}`)
     count++
   }
 
@@ -120,10 +126,12 @@ export const daMigrateFreshCommand = new Command("da:migrate:fresh").description
   
   logger.info("Database has been freshed......")
 
-  const files = fs.existsSync(DW_MIGRATIONS_DIR) ? fs.readdirSync(DW_MIGRATIONS_DIR).sort() : []
+  const files = getMigrationFiles(DW_MIGRATIONS_DIR).sort((a, b) => a.localeCompare(b))
 
   for (const file of files) {
     const filePath = path.join(DW_MIGRATIONS_DIR, file)
+    const migrationPath = path.relative(DW_MIGRATIONS_DIR, filePath)
+
     const mod = await import(filePath)
 
     if (!mod.default) continue
@@ -131,13 +139,35 @@ export const daMigrateFreshCommand = new Command("da:migrate:fresh").description
     const migration = new mod.default()
 
     await migration.up()
-    await recordMigration(file)
-    logger.info(`Migrated: ${file}`)
+    await recordMigration(migrationPath)
+    logger.info(`Migrated: ${migrationPath}`)
   }
 
   logger.info(`Success run all migration!`);
   process.exit(0)
 })
+
+
+function getMigrationFiles(dir: string): string[] {
+  if (!fs.existsSync(dir)) return []
+
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+
+  let files: string[] = []
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name)
+
+    if (entry.isDirectory()) {
+      files = files.concat(getMigrationFiles(fullPath))
+    } else if (entry.isFile() && entry.name.endsWith(".ts")) {
+      files.push(fullPath)
+    }
+  }
+
+  return files
+}
+
 
 
 

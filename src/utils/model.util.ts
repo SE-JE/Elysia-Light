@@ -1580,10 +1580,21 @@ export function BelongsTo(
   }
 ) {
   return (target: any, key: string) => {
+    const ctor        =  target.constructor
     const foreignKey  =  options?.foreignKey ?? `${conversion.strSnake(key)}_id`
     const ownerKey    =  options?.ownerKey ?? 'id'
 
     pushRelation(target, key, { type: 'belongsTo', model, foreignKey, localKey: ownerKey, callback: options?.callback })
+
+    if (!ctor[FIELD_META]) ctor[FIELD_META] = {}
+
+    if (!ctor[FIELD_META][foreignKey]) {
+      ctor[FIELD_META][foreignKey] = {
+        cast: 'number',
+        fillable: true,
+        selectable: true,
+      }
+    }
   }
 }
 
@@ -1681,6 +1692,34 @@ export function Scope(
       fn: descriptor.value,
       mode,
     } satisfies ScopeType
+  }
+}
+
+
+// =================================>
+// ## Hook
+// =================================>
+export function On(event: ModelHookEventType) {
+  return function (
+    target: any,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ) {
+    const ctor = target.constructor
+
+    if (!ctor._hooks) {
+      ctor._hooks = {}
+    }
+
+    if (!ctor._hooks[event]) {
+      ctor._hooks[event] = []
+    }
+
+    ctor._hooks[event].push(
+      async ({ model, trx }: ModelHookContextType) => {
+        return descriptor.value.call(model, { trx })
+      }
+    )
   }
 }
 

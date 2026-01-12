@@ -35,11 +35,21 @@ export const conversion = {
   },
 
   strSingular(value: string): string {
+    const match = value.match(/^(.*?)([A-Za-z]+)$/)
+    if (!match) return value
+
+    const [, prefix, word] = match
+
+    if (word.endsWith("ies")) {
+      return prefix + word.slice(0, -3) + "y"
+    }
+
+    if (word.endsWith("s") && !word.endsWith("ss")) {
+      return prefix + word.slice(0, -1)
+    }
+
     return value
-      .replace(/[-_]/g, " ")
-      .replace(/\b\w/g, (l) => l.toUpperCase())
-      .replace(/\s+/g, "");
-  },
+  }
 };
 
 
