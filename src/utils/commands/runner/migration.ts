@@ -19,11 +19,11 @@ declare module "knex" {
 const TableBuilder = require("knex/lib/schema/tablebuilder")
 
 TableBuilder.prototype.foreignIdFor = function (this: Knex.CreateTableBuilder, tableName: string, column = `${conversion.strSingular(tableName)}_id`) {
-  return this.bigInteger(column).unsigned()
+  return this.bigInteger(column).unsigned().index()
 }
 
 TableBuilder.prototype.softDelete = function (this: Knex.CreateTableBuilder, column = `deleted_at`) {
-  return this.timestamp(column)
+  return this.timestamp(column).index()
 }
 
 

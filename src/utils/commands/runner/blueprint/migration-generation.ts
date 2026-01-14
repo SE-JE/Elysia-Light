@@ -31,25 +31,29 @@ marker     :  string
   }
 
   const migrationFields: string[]  =  [];
-  const autoForeignKeys: string[]  =  [];
   const pivots: string[]           =  []
 
   if (relations) {
     for (const target of extractBelongsTo(relations)) {
-      const [fk, table] = getTargetRelation(target)
-
-      if (schema[fk]) continue
-
-      autoForeignKeys.push(`table.foreignIdFor("${table}")`)
+      const [fk, table, isFk] = getTargetRelation(target)
+      
+      if (schema[fk as string]) continue
+      
+      migrationFields.push(`table.foreignIdFor("${table}"${isFk ? `, "${fk}"` : ""})`)
     }
 
     for (const target of extractBelongsToMany(relations)) {
-      const pivotTable = getTargetTableRelation(name, target)
+      const sourceTable = name
+      const targetTable = conversion.strSnake(conversion.strPlural(target))
+
+      if (sourceTable < targetTable) continue
+
+      const pivotTable = getTargetTableRelation(sourceTable, targetTable)
 
       pivots.push(`  await knex.schema.createTable("${pivotTable}", (table) => {`)
 
-      pivots.push(`    table.foreignIdFor("${name}")`)
-      pivots.push(`    table.foreignIdFor("${target}")`)
+      pivots.push(`    table.foreignIdFor("${sourceTable}")`)
+      pivots.push(`    table.foreignIdFor("${targetTable}")`)
 
       pivots.push(`  })`)
     }
@@ -62,9 +66,12 @@ marker     :  string
 
     let columnDef = "";
     switch (type) {
+      case "bigInt":
+      case "bigint":
       case "bigInteger":
         columnDef = `table.bigInteger("${column}").unsigned()`;
         break;
+      case "int":
       case "integer":
         columnDef = `table.integer("${column}")`;
         break;
@@ -87,8 +94,8 @@ marker     :  string
     if (definition.includes("unique")) {
       columnDef += `.unique()`;
     }
-    if (!definition.includes("required")) {
-      columnDef += `.nullable()`;
+    if (definition.includes("required")) {
+      columnDef += `.notNullable()`;
     }
     if (definition.includes("index")) {
       columnDef += `.index()`;
@@ -126,8 +133,10 @@ function extractBelongsTo(relations: Record<string, string>) {
 }
 
 function getTargetRelation(model: string) {
-  const base = model.split("/").pop()!
-  return [`${conversion.strSnake(base)}_id`, `${conversion.strPlural(conversion.strSnake(base))}`]
+  const base = model?.split(",")?.[0].split("/").pop()!
+  const fk = model?.split(",")?.[1] || `${conversion.strSnake(base)}_id`
+
+  return [fk, `${conversion.strPlural(conversion.strSnake(base))}`, !!model?.split(",")?.[1]]
 }
 
 function extractBelongsToMany(relations: Record<string, string>) {

@@ -1,7 +1,7 @@
 import os from 'os'
 import { Elysia } from 'elysia'
 import { Controller, daClient, db, logger, Middleware, redis, storage } from "@utils"
-import { routes } from '@routes/.'
+import { routes } from '@/routes/index.routes'
 
 
 // =====================================>

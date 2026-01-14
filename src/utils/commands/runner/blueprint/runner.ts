@@ -83,11 +83,12 @@ export async function runBlueprints(options?: { only?: string[] }) {
       if (controllers !== false) {
         if (!!controllers.length) {
           controllers.map(async (item: string) => {
-            const [controller, route] = item.split(" ")
-            await controllerGeneration(struct.model, schema, relations, controller, route || controller, marker)
+            const [controller, route, permission] = item.split(" ")
+            await controllerGeneration(struct.model, schema, relations, controller, route || controller, permission, marker)
           })
         } else {
-          await controllerGeneration(struct.model, schema, relations, struct.model, struct.model, marker)
+          const permission = Math.floor(Math.random() * 1000).toString().padStart(3, "0")
+          await controllerGeneration(struct.model, schema, relations, struct.model, struct.model, permission, marker)
         }
 
         if(struct.postman !== false) {

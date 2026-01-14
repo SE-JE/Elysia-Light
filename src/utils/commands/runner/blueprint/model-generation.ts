@@ -22,6 +22,38 @@ export async function modelGeneration(model: string, schema: Record<string, stri
 
   for (const [name, def] of Object.entries(schema)) {
     const flags: string[] = []
+    const typeMatch = /type:(\w+),?(\d+)?/.exec(def);
+    const type = typeMatch?.[1] ?? "string";
+
+    let columnType = "any";
+    switch (type) {
+      case "bigInt":
+      case "bigint":
+      case "bigInteger":
+      case "int":
+      case "integer":
+      case "float":
+        columnType = "number";
+        break;
+      case "string":
+      case "text":
+      case "time":
+        columnType = "string";
+        break;
+      case "date":
+      case "timestamp":
+        columnType = "Date";
+        break;
+      case "json":
+        columnType = "Record<string,any>";
+        break;
+      case "boolean":
+        columnType = "boolean";
+        break;
+      default:
+        columnType = "any";
+        break;
+    }
 
     if (def.includes("fillable")) flags.push("fillable")
     if (def.includes("searchable")) flags.push("searchable")
@@ -32,7 +64,7 @@ export async function modelGeneration(model: string, schema: Record<string, stri
 
     fields.push([
       `    ${decorator}`,
-      `    ${name}!: any`
+      `    ${name}!: ${columnType}`
     ].join("\n"))
   }
 
@@ -43,19 +75,20 @@ export async function modelGeneration(model: string, schema: Record<string, stri
 
   for (const [name, def] of Object.entries(relations)) {
     let type = "BelongsTo"
-    let target = conversion.strPascal(def.replace(/\[\]|\[1\]|:/g, "").split(" ")[0])
+    let target = conversion.strPascal(def.replace(/\[\]|\[1\]|:/g, "").split(" ")[0].split(",")[0])
+    const fk = def.split(" ")[0].split(",")[1] || null
 
     if (def.startsWith("[]:")) type = "BelongsToMany"
     else if (def.startsWith("[]")) type = "HasMany"
     else if (def.startsWith("[1]")) type = "HasOne"
 
     !importUtils.includes(type) && importUtils.push(type)
-    importRelations.push(`${target}`)
+    !importRelations.includes(target) && importRelations.push(`${target}`)
 
     const isMany = type === "HasMany" || type === "BelongsToMany"
 
     relationFields.push([
-      `    @${type}(() => ${target})`,
+      `    @${type}(() => ${target}${fk ? `, { foreignKey: "${fk}" }` : ""})`,
       `    ${name}!: ${isMany ? `${target}[]` : target}`
     ].join("\n"))
   }
@@ -74,7 +107,6 @@ export async function modelGeneration(model: string, schema: Record<string, stri
     .replace(/{{\s*fields\s*}}/g, fields.join("\n\n"))
     .replace(/{{\s*relations\s*}}/g, relationFields.join("\n\n"))
     .replace(/{{\s*attributes\s*}}/g, "")
-    .replace(/{{\s*hooks\s*}}/g, "")
     .replace(/{{\s*import\s*}}/g, imports.join("\n"))
     .replace(/{{\s*import_utils\s*}}/g, strImportUtils)
 

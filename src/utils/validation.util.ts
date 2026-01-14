@@ -9,11 +9,13 @@ export type ValidationRule =
   | "required"
   | "string"
   | "numeric"
+  | "number"
   | "boolean"
   | "email"
   | "url"
   | "date"
   | "confirmed"
+  | "array"
   | `min:`
   | `min:${number}`
   | `max:`
@@ -52,151 +54,39 @@ export async function validate(
   const errors: Record<string, string[]> = {}
 
   for (const field in rules) {
-    const value = getNestedValue(data, field) ?? ""
     const fieldRules = normalizeRules(rules[field])
 
-    for (const rule of fieldRules) {
-      const [name, param] = rule.split(":") as [string, string | undefined]
+    if (field.includes("*")) {
+      // const [arrayPath, childPath] = field.split(".*.")
+      // const arr = getNestedValue(data, arrayPath)
 
-      switch (name) {
-        // === BASIC ===
-        case "required":
-          if (validator.isEmpty(String(value).trim())) {
-            addError(errors, field, `${field} wajib diisi`)
-          }
-          break
+      // if (!Array.isArray(arr)) {
+      //   addError(errors, arrayPath, `${arrayPath} harus berupa array`)
+      //   continue
+      // }
 
-        case "string":
-          if (typeof value !== "string") {
-            addError(errors, field, `${field} harus berupa string`)
-          }
-          break
+      // for (let i = 0; i < arr.length; i++) {
+      //   const value = childPath
+      //     ? getNestedValue(arr[i], childPath)
+      //     : arr[i]
 
-        case "numeric":
-          if (!validator.isNumeric(String(value))) {
-            addError(errors, field, `${field} harus berupa angka`)
-          }
-          break
+      //   const itemField = childPath
+      //     ? `${arrayPath}.${i}.${childPath}`
+      //     : `${arrayPath}.${i}`
 
-        case "boolean":
-          if (!(value === true || value === false || value === "true" || value === "false" || value === 1 || value === 0)) {
-            addError(errors, field, `${field} harus berupa boolean`)
-          }
-          break
+      //   await checkRules({ field: itemField, value, rules: fieldRules, data, errors })
+      // }
+      const segments = field.split(".")
 
-        case "email":
-          if (!validator.isEmail(String(value))) {
-            addError(errors, field, `${field} harus berupa email yang valid`)
-          }
-          break
+      await nestedValidation({ value: data, segments, rules: fieldRules, fieldPath: "", data, errors })
 
-        case "url":
-          if (!validator.isURL(String(value))) {
-            addError(errors, field, `${field} harus berupa URL yang valid`)
-          }
-          break
-
-        case "date":
-          if (!validator.isDate(String(value))) {
-            addError(errors, field, `${field} harus berupa tanggal yang valid`)
-          }
-          break
-
-        // === LENGTH ===
-        case "min": {
-          const min = parseInt(param!)
-          if (!validator.isLength(String(value), { min })) {
-            addError(errors, field, `${field} minimal ${min} karakter`)
-          }
-          break
-        }
-
-        case "max": {
-          const max = parseInt(param!)
-          if (!validator.isLength(String(value), { max })) {
-            addError(errors, field, `${field} maksimal ${max} karakter`)
-          }
-          break
-        }
-
-        case "between": {
-          const [minVal, maxVal] = param!.split(",").map(Number)
-          if (!validator.isLength(String(value), { min: minVal, max: maxVal })) {
-            addError(errors, field, `${field} harus antara ${minVal} - ${maxVal} karakter`)
-          }
-          break
-        }
-
-        // === SET MEMBERSHIP ===
-        case "in": {
-          const allowed = param!.split(",")
-          if (!allowed.includes(String(value))) {
-            addError(errors, field, `${field} harus salah satu dari: ${allowed.join(", ")}`)
-          }
-          break
-        }
-
-        case "not_in": {
-          const notAllowed = param!.split(",")
-          if (notAllowed.includes(String(value))) {
-            addError(errors, field, `${field} tidak boleh salah satu dari: ${notAllowed.join(", ")}`)
-          }
-          break
-        }
-
-        // === RELATIONAL ===
-        case "confirmed":
-          if (value !== getNestedValue(data, `${field}_confirmation`)) {
-            addError(errors, field, `${field} tidak sama dengan konfirmasi`)
-          }
-          break
-
-        case "same":
-          if (value !== getNestedValue(data, param!)) {
-            addError(errors, field, `${field} harus sama dengan ${param}`)
-          }
-          break
-
-        case "different":
-          if (value === getNestedValue(data, param!)) {
-            addError(errors, field, `${field} harus berbeda dengan ${param}`)
-          }
-          break
-
-        // === REGEX ===
-        case "regex":
-          try {
-            const pattern = new RegExp(param!)
-            if (!pattern.test(String(value))) {
-              addError(errors, field, `${field} tidak sesuai format`)
-            }
-          } catch {
-            addError(errors, field, `Regex rule untuk ${field} tidak valid`)
-          }
-          break
-
-        // === DATABASE VALIDATION ===
-        case "unique": {
-          const [table, column, exceptId] = param!.split(",")
-          const query = db.table(table).where(column, value)
-          if (exceptId) query.whereNot("id", exceptId)
-          const existing = await query.first()
-          if (existing) {
-            addError(errors, field, `${field} sudah digunakan`)
-          }
-          break
-        }
-
-        case "exists": {
-          const [table, column] = param!.split(",")
-          const existing = await db.table(table).where(column, value).first()
-          if (!existing) {
-            addError(errors, field, `${field} tidak ditemukan di ${table}`)
-          }
-          break
-        }
-      }
+      continue
     }
+
+
+    const value = getNestedValue(data, field) ?? ""
+
+    await checkRules({ field, value, rules: fieldRules, data, errors })
   }
 
   return {
@@ -204,6 +94,220 @@ export async function validate(
     errors
   }
 }
+
+
+async function checkRules({ field, value, rules, data, errors } : { field: string, value: any, rules: ValidationRule[], data: any, errors: Record<string, string[]> }) {
+  for (const rule of rules) {
+    const [name, param] = rule.split(":") as [string, string | undefined]
+
+    switch (name) {
+      // === BASIC ===
+      case "required":
+        if (validator.isEmpty(String(value).trim())) {
+          addError(errors, field, `${field} wajib diisi`)
+        }
+        break
+
+      case "string":
+      case "text":
+        if (typeof value !== "string") {
+          addError(errors, field, `${field} harus berupa string`)
+        }
+        break
+
+      case "numeric":
+      case "number":
+        if (!validator.isNumeric(String(value))) {
+          addError(errors, field, `${field} harus berupa angka`)
+        }
+        break
+
+      case "boolean":
+        if (!(value === true || value === false || value === "true" || value === "false" || value === 1 || value === 0)) {
+          addError(errors, field, `${field} harus berupa boolean`)
+        }
+        break
+
+      case "email":
+        if (!validator.isEmail(String(value))) {
+          addError(errors, field, `${field} harus berupa email yang valid`)
+        }
+        break
+
+      case "url":
+        if (!validator.isURL(String(value))) {
+          addError(errors, field, `${field} harus berupa URL yang valid`)
+        }
+        break
+
+      case "date":
+        if (!validator.isDate(String(value))) {
+          addError(errors, field, `${field} harus berupa tanggal yang valid`)
+        }
+        break
+
+      // === LENGTH ===
+      case "min": {
+        const min = parseInt(param!)
+        if (!validator.isLength(String(value), { min })) {
+          addError(errors, field, `${field} minimal ${min} karakter`)
+        }
+        break
+      }
+
+      case "max": {
+        const max = parseInt(param!)
+        if (!validator.isLength(String(value), { max })) {
+          addError(errors, field, `${field} maksimal ${max} karakter`)
+        }
+        break
+      }
+
+      case "between": {
+        const [minVal, maxVal] = param!.split(",").map(Number)
+        if (!validator.isLength(String(value), { min: minVal, max: maxVal })) {
+          addError(errors, field, `${field} harus antara ${minVal} - ${maxVal} karakter`)
+        }
+        break
+      }
+
+      // === SET MEMBERSHIP ===
+      case "in": {
+        const allowed = param!.split(",")
+        if (!allowed.includes(String(value))) {
+          addError(errors, field, `${field} harus salah satu dari: ${allowed.join(", ")}`)
+        }
+        break
+      }
+
+      case "not_in": {
+        const notAllowed = param!.split(",")
+        if (notAllowed.includes(String(value))) {
+          addError(errors, field, `${field} tidak boleh salah satu dari: ${notAllowed.join(", ")}`)
+        }
+        break
+      }
+
+      case "array":
+      if (!Array.isArray(value)) {
+        addError(errors, field, `${field} harus berupa array`)
+      }
+      break
+
+      // === RELATIONAL ===
+      case "confirmed":
+        if (value !== getNestedValue(data, `${field}_confirmation`)) {
+          addError(errors, field, `${field} tidak sama dengan konfirmasi`)
+        }
+        break
+
+      case "same":
+        if (value !== getNestedValue(data, param!)) {
+          addError(errors, field, `${field} harus sama dengan ${param}`)
+        }
+        break
+
+      case "different":
+        if (value === getNestedValue(data, param!)) {
+          addError(errors, field, `${field} harus berbeda dengan ${param}`)
+        }
+        break
+
+      // === REGEX ===
+      case "regex":
+        try {
+          const pattern = new RegExp(param!)
+          if (!pattern.test(String(value))) {
+            addError(errors, field, `${field} tidak sesuai format`)
+          }
+        } catch {
+          addError(errors, field, `Regex rule untuk ${field} tidak valid`)
+        }
+        break
+
+      // === DATABASE VALIDATION ===
+      case "unique": {
+        const [table, column, exceptId] = param!.split(",")
+        const query = db.table(table).where(column, value)
+        if (exceptId) query.whereNot("id", exceptId)
+        const existing = await query.first()
+        if (existing) {
+          addError(errors, field, `${field} sudah digunakan`)
+        }
+        break
+      }
+
+      case "exists": {
+        const [table, column] = param!.split(",")
+        const existing = await db.table(table).where(column, value).first()
+        if (!existing) {
+          addError(errors, field, `${field} tidak ditemukan di ${table}`)
+        }
+        break
+      }
+    }
+  }
+}
+
+
+
+async function nestedValidation({
+  value,
+  segments,
+  rules,
+  fieldPath,
+  data,
+  errors
+}: {
+  value: any
+  segments: string[]
+  rules: ValidationRule[]
+  fieldPath: string
+  data: any
+  errors: Record<string, string[]>
+}) {
+  if (segments.length === 0) {
+    await checkRules({
+      field: fieldPath,
+      value,
+      rules,
+      data,
+      errors
+    })
+    return
+  }
+
+  const [segment, ...rest] = segments
+
+  if (segment === "*") {
+    if (!Array.isArray(value)) {
+      addError(errors, fieldPath, `${fieldPath} harus berupa array`)
+      return
+    }
+
+    for (let i = 0; i < value.length; i++) {
+      await nestedValidation({
+        value: value[i],
+        segments: rest,
+        rules,
+        fieldPath: `${fieldPath}.${i}`,
+        data,
+        errors
+      })
+    }
+  } else {
+    await nestedValidation({
+      value: value?.[segment],
+      segments: rest,
+      rules,
+      fieldPath: fieldPath ? `${fieldPath}.${segment}` : segment,
+      data,
+      errors
+    })
+  }
+}
+
+
 
 // ==================================>
 // ## Validation helpers

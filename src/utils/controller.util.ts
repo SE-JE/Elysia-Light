@@ -31,7 +31,7 @@ declare module "elysia" {
       body                  : any 
     };
 
-    validation              :  <T extends object>(rules: Partial<Record<keyof T, ValidationRule[] | string>>) => any;
+    validation              :  <T extends object>(rules: Partial<Record<keyof T | string, ValidationRule[] | string>>) => any;
     responseError           :  (...args: any[]) => any;
     responseErrorValidation :  (errors: Record<string, string[]>) => any;
     responseSaved           :  (data: any, message?: string) => any;
@@ -46,7 +46,7 @@ declare module "elysia" {
 }
 
 export type ValidationRulesFor<T> = Partial<
-  Record<keyof T, ValidationRule[] | string>
+  Record<keyof T | string, ValidationRule[] | string>
 >
 
 
@@ -73,7 +73,7 @@ export const Controller = (app: Elysia) => app.derive(({ query, body, status }) 
   // ## Validation request body
   // ===================================>
   validation: async <T extends object>(
-    rules: Partial<Record<keyof T, ValidationRules[] | string>>
+    rules: Partial<Record<keyof T | string, ValidationRules[] | string>>
   ) => {
     const result = await validate(
       body as Record<string, any>,

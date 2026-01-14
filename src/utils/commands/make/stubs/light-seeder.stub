@@ -6,7 +6,7 @@ export default async function {{ name }}Seeder() {
     // ## Seed the application's database
     // =========================>
     
-    await {{ name }}.query().insert([
+    await (new {{ name }}).pump([
       {{ seeders }}
     ]);
 }

@@ -13,6 +13,7 @@ export async function controllerGeneration(
   relations    :  Record<string, string>  =  {},
   controller   :  string                  =  "",
   route        :  string                  =  "",
+  permission   :  string                  =  "",
   marker       :  string
 ) {
   const resolvePath = resolveBlueprintPath(controller, "controller");
@@ -22,6 +23,8 @@ export async function controllerGeneration(
 
   const modelName = conversion.strPascal(model?.split("/")?.pop() || "");
   const controllerName = conversion.strPascal(controller?.split("/")?.pop() || "") + "Controller";
+  const permissionCode = conversion.strPascal(permission?.split(":")?.[0] || "");
+  const permissionName = conversion.strPascal(permission?.split(":")?.[1] || "", " ") || conversion.strPascal(controller?.split("/")?.pop() || "");
 
   const validations = {
     ...generateFieldValidations(model, schema),
@@ -34,6 +37,8 @@ export async function controllerGeneration(
     .replace(/{{\s*marker\s*}}/g, marker)
     .replace(/{{\s*name\s*}}/g, controllerName)
     .replace(/{{\s*model\s*}}/g, modelName)
+    .replace(/{{\s*permission_code\s*}}/g, permissionCode)
+    .replace(/{{\s*permission_name\s*}}/g, permissionName)
     .replace(/{{\s*validations\s*}}/g, renderValidationObject(validations));
 
   fs.writeFileSync(filePath, stub, "utf-8");
@@ -48,12 +53,13 @@ export async function controllerGeneration(
 // ## Command: Blueprint route generation
 // =============================>
 function apiRouteGeneration(routePath: string, controllerName: string) {
-  const routesPath = path.join(process.cwd(), "src", "routes", "index.ts")
+  const { file, apiPath } = parseRoutePath(routePath)
 
+  const routesPath = ensureRouteFile(file)
   let content = fs.readFileSync(routesPath, "utf-8")
 
   content = ensureControllerImported(content, controllerName)
-  content = ensureApiRoute(content, routePath, controllerName)
+  content = ensureApiRoute(content, apiPath, controllerName)
 
   fs.writeFileSync(routesPath, content, "utf-8")
 }
@@ -81,7 +87,7 @@ function generateRelationValidations(relations: Record<string, string>) {
       rules[name]         =  ["array"]
       rules[`${name}.*`]  =  ["number", `exists:${table},id`]
     } else {
-      rules[name]  =  ["number", `exists:${table},id`]
+      rules[conversion.strSingular(table) + "_id"]  =  ["number", `exists:${table},id`]
     }
   }
 
@@ -136,7 +142,7 @@ function ensureControllerImported(content: string, controllerName: string): stri
     return content.replace(importBlockRegex, (match, group) => {
       if (group.includes(controllerName)) return match
 
-      const updated = group.trim() ? `${group.trim()},\n    ${controllerName}` : controllerName
+      const updated = group.trim() ? `${group.trim()}\n    ${controllerName},` : controllerName
 
       return `import {\n${updated}\n} from '@controllers'`
     })
@@ -161,4 +167,36 @@ function ensureApiRoute(content: string, routePath: string, controllerName: stri
   }
 
   return (content.slice(0, returnIndex) + apiLine + "\n    " + content.slice(returnIndex))
+}
+
+
+function parseRoutePath(routePath: string) {
+  if (!routePath.includes(":")) {
+    return { file: "index", apiPath: routePath }
+  }
+
+  const parts = routePath.split(":").filter(Boolean)
+
+  const file = parts.shift()!
+  const apiPath = parts.join("/")
+
+  return { file, apiPath }
+}
+
+
+function ensureRouteFile(file: string) {
+  const routesDir = path.join(process.cwd(), "src", "routes")
+  if (file === "index") return path.join(routesDir, "index.ts")
+
+  const filePath = path.join(routesDir, `${file}.routes.ts`)
+  if (fs.existsSync(filePath)) return filePath
+
+  const stubPath = path.join(process.cwd(),"src/utils/commands/make/stubs/route.stub")
+  let stub = fs.readFileSync(stubPath, "utf-8")
+
+  stub = stub.replace(/{{\s*name\s*}}/g, file).replace(/{{\s*path\s*}}/g, file)
+
+  fs.writeFileSync(filePath, stub, "utf-8")
+
+  return filePath
 }

@@ -1,12 +1,34 @@
 {{ marker }}
 import type { ControllerContext } from "elysia"
+import { permission } from '@utils'
 import { {{ model }} } from '@models'
+
+
+
+// ========================================>
+// ## Permission of the resource.
+// ========================================>
+const p = permission.register({
+    "{{ permission_code }}": {
+        name: "{{ permission_name }}",
+        accesses: {
+            "00": "Melihat",
+            "01": "Membuat",
+            "02": "Mengubah",
+            "03": "Menghapus",
+        }
+    }
+})
+
+
 
 export class {{ name }} {
     // ========================================>
     // ## Display a listing of the resource.
     // ========================================>
     static async index(c: ControllerContext) {
+        p.have("{{ permission_code }}.00").guard(c)
+
         const { data, total } = await {{ model }}.query().resolve(c)
         
         c.responseData(data, total)
@@ -17,6 +39,8 @@ export class {{ name }} {
     // ## Store a newly created resource.
     // =============================================>
     static async store(c: ControllerContext) {
+        p.have("{{ permission_code }}.01").guard(c)
+
         c.validation<{{ model }}>({{{ validations }}})
 
         let record = {}
@@ -35,6 +59,8 @@ export class {{ name }} {
     // ## Update the specified resource.
     // ============================================>
     static async update(c: ControllerContext) {
+        p.have("{{ permission_code }}.02").guard(c)
+
         const record = await {{ model }}.query().findOrNotFound(c.params.id)
 
         c.validation<{{ model }}>({{{ validations }}})
@@ -53,6 +79,8 @@ export class {{ name }} {
     // ## Remove the specified resource.
     // ===============================================>
     static async destroy(c: ControllerContext) {
+        p.have("{{ permission_code }}.03").guard(c)
+
         const record = await {{ model }}.query().findOrNotFound(c.params.id)
         
         try {

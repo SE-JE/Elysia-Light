@@ -9,7 +9,7 @@ export class {{ name }} extends Model {
 {{ fields }}
 
     @SoftDelete()
-    deleted_at!:any
+    deleted_at!: Date
 
 
     // =========================>
@@ -27,5 +27,5 @@ export class {{ name }} extends Model {
     // =====================>
     // ## Hook
     // =====================>
-{{ hooks }}  
+
 }
