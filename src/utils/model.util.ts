@@ -1599,26 +1599,51 @@ export function BelongsTo(
 }
 
 
+// export function BelongsToMany(
+//   model     :  () => typeof Model,
+//   options  ?:  {
+//     pivotTable    ?:  string
+//     pivotLocal    ?:  string
+//     pivotForeign  ?:  string
+//     localKey      ?:  string
+//     callback      ?:  (q: any) => void
+//   }
+// ) {
+//   return (target: any, key: string) => {
+//     const parent        =  target.constructor
+//     const parentName    =  conversion.strSnake(parent.name)
+//     const relatedName   =  conversion.strSnake(model().name)
+//     const pivotTable    =  options?.pivotTable ?? conversion.strPlural(`${parentName}_${relatedName}`)
+//     const localKey      =  options?.localKey ?? 'id'
+//     const pivotLocal    =  options?.pivotLocal ?? `${parentName}_id`
+//     const pivotForeign  =  options?.pivotForeign ?? `${relatedName}_id`
+
+//     pushRelation(target, key, { type: 'belongsToMany', model, localKey, foreignKey: localKey, pivotTable, pivotLocal, pivotForeign, callback: options?.callback })
+//   }
+// }
 export function BelongsToMany(
-  model     :  () => typeof Model,
-  options  ?:  {
-    pivotTable    ?:  string
-    pivotLocal    ?:  string
-    pivotForeign  ?:  string
-    localKey      ?:  string
-    callback      ?:  (q: any) => void
+  model     : () => typeof Model,
+  options  ?: {
+    pivotTable    ?: string
+    pivotLocal    ?: string
+    pivotForeign  ?: string
+    localKey      ?: string
+    callback      ?: (q: any) => void
   }
 ) {
   return (target: any, key: string) => {
-    const parent        =  target.constructor
-    const parentName    =  conversion.strSnake(parent.name)
-    const relatedName   =  conversion.strSnake(model().name)
-    const pivotTable    =  options?.pivotTable ?? conversion.strPlural(`${parentName}_${relatedName}`)
-    const localKey      =  options?.localKey ?? 'id'
-    const pivotLocal    =  options?.pivotLocal ?? `${parentName}_id`
-    const pivotForeign  =  options?.pivotForeign ?? `${relatedName}_id`
+    const localKey = options?.localKey ?? 'id'
 
-    pushRelation(target, key, { type: 'belongsToMany', model, localKey, foreignKey: localKey, pivotTable, pivotLocal, pivotForeign, callback: options?.callback })
+    pushRelation(target, key, {
+      type: 'belongsToMany',
+      model,
+      localKey,
+      foreignKey: localKey,
+      pivotTable: options?.pivotTable,
+      pivotLocal: options?.pivotLocal,
+      pivotForeign: options?.pivotForeign,
+      callback: options?.callback,
+    })
   }
 }
 
@@ -1833,12 +1858,17 @@ async function loadBelongsToMany(
     return []
   }
 
-  const Related = rel.model()
-  const relatedTable = Related.getTable()
+  const Parent       =  rows[0].constructor
+  const Related      =  rel.model()
+  const parentName   =  conversion.strSnake(Parent.name)
+  const relatedName  =  conversion.strSnake(Related.name)
 
-  const q = Related.query()
-    .join(rel.pivotTable, `${relatedTable}.${Related.primaryKey}`, '=', `${rel.pivotTable}.${rel.pivotForeign}`)
-    .whereIn(`${rel.pivotTable}.${rel.pivotLocal}`, ids)
+  const pivotTable    =  rel.pivotTable ?? conversion.strPlural(`${parentName}_${relatedName}`)
+  const pivotLocal    =  rel.pivotLocal ?? `${parentName}_id`
+  const pivotForeign  =  rel.pivotForeign ?? `${relatedName}_id`
+  const relatedTable  =  Related.getTable()
+
+  const q = Related.query().join(pivotTable, `${relatedTable}.${Related.primaryKey}`, '=', `${pivotTable}.${pivotForeign}`).whereIn(`${pivotTable}.${pivotLocal}`, ids)
 
   rel.callback?.(q)
   callback?.(q)
@@ -1848,14 +1878,15 @@ async function loadBelongsToMany(
   const grouped: Record<string, any[]> = {}
 
   for (const r of related) {
-    const pivotValue = (r as any)[rel.pivotLocal]
+    const pivotValue = (r as any)[pivotLocal]
     ;(grouped[pivotValue] ??= []).push(r)
   }
 
-  rows.forEach(r => r[name] = grouped[r[rel.localKey]] ?? [])
+  rows.forEach(r => { r[name] = grouped[r[rel.localKey]] ?? [] })
 
   return related
 }
+
 
 
 async function loadHasMany(rows: any[], rel: any, name: string, callback?: (q: any) => void) {
