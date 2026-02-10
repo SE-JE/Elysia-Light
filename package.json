@@ -1,15 +1,16 @@
 {
   "name": "elysia-light",
-  "version": "1.0.50",
+  "version": "1.0.0",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "barrels": "bun run src/utils/commands/barrels.ts",
-    "light": "bun src/utils/commands/light.ts",
-    "dev": "concurrently --raw \"bun run --watch src/app.ts\" \"bun barrels\" \"bun start:cron\" \"bun start:queue\" \"bun start:socket\"",
-    "start": "bun run src/app.ts",
-    "start:cron": "bun run src/jobs/crons/worker.cron.ts",
-    "start:queue": "bun run src/jobs/queues/worker.queue.ts",
-    "start:socket": "bun run src/jobs/sockets/worker.socket.ts"
+    "dev"           :  "concurrently --raw \"bun run --watch app/app.ts\" \"bun barrels\" \"bun start:cron\" \"bun start:queue\" \"bun start:socket\"",
+    "start"         :  "bun run app/app.ts",
+    "start:cron"    :  "bun run app/jobs/crons/worker.cron.ts",
+    "start:queue"   :  "bun run app/jobs/queues/worker.queue.ts",
+    "start:socket"  :  "bun run app/jobs/sockets/worker.socket.ts",
+    "test"          :  "bun tsc --noEmit",
+    "lint"          :  "bunx eslint app/* utils/* database/*",
+    "barrels"       :  "bun run utils/commands/barrels.ts",
+    "light"         :  "bun utils/commands/light.ts"
   },
   "dependencies": {
     "@clickhouse/client": "^1.13.0",
@@ -25,6 +26,11 @@
     "validator": "^13.15.15"
   },
   "devDependencies": {
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "@eslint/eslintrc": "eslint/eslintrc",
+    "@typescript-eslint/eslint-plugin": "^8.55.0",
+    "@typescript-eslint/parser": "^8.55.0",
     "@types/bcrypt": "^6.0.0",
     "@types/nodemailer": "^7.0.2",
     "@types/validator": "^13.15.3",

@@ -102,17 +102,18 @@
     "experimentalDecorators": true,
     "baseUrl"           :  ".",                                                                              // root project
     "paths"             :  {
-      "@/*"             : ["src/*"],
-      "@utils"          : ["src/utils/index.ts"],
-      "@utils/*"        : ["src/utils/*"],
-      "@controllers"    : ["src/controllers/index.ts"],
-      "@controllers/*"  : ["src/controllers/*"],
-      "@models"         : ["src/models/index.ts"],
-      "@models/*"       : ["src/models/*"],
-      "@mails/*"        : ["src/outputs/mails/*"],
-      "@mails"          : ["src/outputs/mails/index.ts"],
-      "@routes/*"       : ["src/routes/*"],
-      "@blueprints/*"   : ["src/blueprints/*"]
+      "@app/*"                   :  ["app/*"],
+      "@controllers"             :  ["app/controllers/index.ts"],
+      "@controllers/*"           :  ["app/controllers/*"],
+      "@models"                  :  ["app/models/index.ts"],
+      "@models/*"                :  ["app/models/*"],
+      "@mails/*"                 :  ["app/outputs/mails/*"],
+      "@mails"                   :  ["app/outputs/mails/index.ts"],
+      "@routes"                  :  ["app/routes/index.ts"],
+      "@routes/*"                :  ["app/routes/*"],
+      "@utils"                   :  ["utils/index.ts"],
+      "@utils/*"                 :  ["utils/*"],
+      "@blueprints/*"            :  ["blueprints/*"]
     }
   }
 }
